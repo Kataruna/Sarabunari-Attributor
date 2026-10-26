@@ -31,10 +31,16 @@ namespace Sarabunari.Attributor.Editor
 
         public static VisualElement CreateMember(SerializedObject so, MemberEntry m)
         {
-            if (m.Kind != MemberKind.Field) return null;
-            if (m.Info is FieldInfo info && info.IsDefined(typeof(HideInInspector), true)) return null;
+            if (m.Kind == MemberKind.Button)
+                return MemberElements.CreateButton(so, (MethodInfo)m.Info, m.Info.GetCustomAttribute<ButtonAttribute>());
+            var info = (FieldInfo)m.Info;
+            if (m.Kind == MemberKind.Show) return MemberElements.CreateShow(so, info);
+            if (info.IsDefined(typeof(HideInInspector), true)) return null;
             var property = so.FindProperty(m.Name);
-            return property == null ? null : new PropertyField(property) { name = m.Name };
+            if (property == null) return null;
+            var field = new PropertyField(property) { name = m.Name };
+            MemberElements.ApplyModifiers(field, so, info);
+            return field;
         }
 
         static void AddChildren(VisualElement container, SerializedObject so, GroupNode group)
