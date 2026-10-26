@@ -47,4 +47,4 @@ Gives a collapsible **Border** with two 2×2 boxes, then `[Spawn] [Reset] [Clear
 
 - `Locked`, `EnableIf`, `DisableIf`, `OnChange`, `Group`, `Fold` and `Button` work on members of a `MonoBehaviour` or `ScriptableObject`, not inside nested `[Serializable]` classes. `Line`, `SceneName` and `Expand` work anywhere.
 - Scripts that use none of these attributes get Unity's normal inspector.
-- Not compatible with NaughtyAttributes installed in the same project (both replace the inspector).
+- Not compatible with NaughtyAttributes installed in the same project (both replace the inspector) — see [MIGRATION.md](MIGRATION.md) to switch.
