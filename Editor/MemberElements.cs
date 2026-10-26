@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
@@ -14,6 +15,7 @@ namespace Sarabunari.Attributor.Editor
     public static class MemberElements
     {
         const BindingFlags All = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+        static readonly HashSet<string> Warned = new HashSet<string>();
 
         public static VisualElement CreateButton(SerializedObject so, MethodInfo method, ButtonAttribute attr)
         {
@@ -70,7 +72,8 @@ namespace Sarabunari.Attributor.Editor
                 var method = t.GetMethod(name, All, null, Type.EmptyTypes, null);
                 if (method != null && method.ReturnType == typeof(bool)) return (bool)method.Invoke(target, null);
             }
-            Debug.LogWarning($"Attributor: no bool field, property or method named '{name}' on {target.GetType().Name}");
+            if (Warned.Add(target.GetType().FullName + "." + name))
+                Debug.LogWarning($"Attributor: no bool field, property or method named '{name}' on {target.GetType().Name}");
             return false;
         }
 
@@ -85,9 +88,22 @@ namespace Sarabunari.Attributor.Editor
             else if (enableIf != null || disableIf != null)
             {
                 var target = so.targetObject;
-                void Refresh() => element.SetEnabled(
-                    (enableIf == null || EvaluateCondition(target, enableIf.Condition)) &&
-                    (disableIf == null || !EvaluateCondition(target, disableIf.Condition)));
+                var failed = false;
+                void Refresh()
+                {
+                    if (failed) return;
+                    try
+                    {
+                        element.SetEnabled(
+                            (enableIf == null || EvaluateCondition(target, enableIf.Condition)) &&
+                            (disableIf == null || !EvaluateCondition(target, disableIf.Condition)));
+                    }
+                    catch (Exception e)
+                    {
+                        failed = true; // log once, not every poll
+                        Debug.LogException(e is TargetInvocationException t ? t.InnerException : e, target);
+                    }
+                }
                 Refresh();
                 // ponytail: polling, switch to change events if inspectors get heavy
                 element.schedule.Execute(Refresh).Every(100);

@@ -31,7 +31,8 @@
     width: auto;
 }
 
+/* Margins sit outside the % width, so any horizontal margin would wrap the last button. */
 .attributor-cell.unity-button {
     margin-left: 0;
-    margin-right: 2px;
+    margin-right: 0;
 }

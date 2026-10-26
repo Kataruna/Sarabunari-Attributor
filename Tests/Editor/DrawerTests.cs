@@ -51,6 +51,36 @@ namespace Sarabunari.Attributor.Tests
             return go.AddComponent<T>();
         }
 
+        [UnityTest]
+        public IEnumerator BareRowOfThreeButtons_StaysOnOneLine()
+        {
+            yield return Show(Component<ActionsFixture>());
+            window.position = new Rect(100, 100, 420, 600);
+            for (var i = 0; i < 5; i++) yield return null;
+            var row = window.rootVisualElement.Q(className: "attributor-row").Query<Button>().ToList();
+            Assert.AreEqual(3, row.Count);
+            Assert.AreEqual(row[0].worldBound.y, row[2].worldBound.y, 0.5f);
+        }
+
+        [UnityTest]
+        public IEnumerator UnknownCondition_WarnsOnce()
+        {
+            LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("doesNotExist"));
+            yield return Show(Component<TypoFixture>());
+            var until = EditorApplication.timeSinceStartup + 0.5;
+            while (EditorApplication.timeSinceStartup < until) yield return null;
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        [Test]
+        public void UnityBaseClassFields_StillDrawn()
+        {
+            var c = Component<UnityBaseFixture>();
+            editor = UnityEditor.Editor.CreateEditor(c);
+            var root = editor.CreateInspectorGUI();
+            CollectionAssert.AreEqual(new[] { "m_Script", "baseField", "own", "Rebuild" }, root.Children().Select(e => e.name));
+        }
+
         [Test]
         public void SceneOptions_MatchEnabledBuildScenes()
         {

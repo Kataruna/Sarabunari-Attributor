@@ -26,7 +26,7 @@ using Sarabunari.Attributor;
 | `Locked` | `[Locked] public int id;` | Greyed out. |
 | `Line` | `[Line]` | Separator line above the field. |
 | `EnableIf` / `DisableIf` | `[EnableIf("useCamera")]` | Editable only when / greyed out when a bool field, property or method is true. |
-| `OnChange` | `[OnChange("Apply")]` | Calls a method after the field changes in the inspector. |
+| `OnChange` | `[OnChange("Apply")]` | Calls a method after the field's value changes while its inspector is open — edits, Undo, and code writing the field in play mode. |
 | `Expand` | `[Expand] public MyConfig config;` | Shows the referenced asset's fields inline. |
 | `SceneName` | `[SceneName] public string scene;` | Pick a scene from Build Settings. |
 

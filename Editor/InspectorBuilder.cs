@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Reflection;
 using UnityEditor;
 using UnityEditor.UIElements;
@@ -25,8 +26,23 @@ namespace Sarabunari.Attributor.Editor
                 element.Add(field);
             }
 
+            // Fields declared in Unity base classes (e.g. Graphic.m_Color) aren't collected: draw them first, as-is.
+            var collected = new HashSet<string>();
+            CollectNames(root, collected);
+            var property = so.GetIterator();
+            for (var enter = true; property.NextVisible(enter); enter = false)
+                if (property.name != "m_Script" && !collected.Contains(property.name))
+                    element.Add(new PropertyField(property.Copy()) { name = property.name });
+
             AddChildren(element, so, root);
             return element;
+        }
+
+        static void CollectNames(GroupNode group, HashSet<string> names)
+        {
+            foreach (var child in group.Children)
+                if (child is GroupNode g) CollectNames(g, names);
+                else names.Add(((MemberNode)child).Member.Name);
         }
 
         public static VisualElement CreateMember(SerializedObject so, MemberEntry m)
