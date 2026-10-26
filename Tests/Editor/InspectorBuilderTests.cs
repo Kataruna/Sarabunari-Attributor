@@ -36,14 +36,6 @@ namespace Sarabunari.Attributor.Tests
             Assert.IsNull(root.Q(className: "attributor-box"));
         }
 
-        [Test, Ignore("Task 6")]
-        public void PlainClass_NestedSceneName_Renders()
-        {
-            var root = Inspect<PlainFixture>();
-            root.Bind(editor.serializedObject);
-            Assert.IsNotNull(root.Q<PopupField<string>>());
-        }
-
         [Test]
         public void Border_IsFoldout_ContainsOuterThenInnerBoxes()
         {

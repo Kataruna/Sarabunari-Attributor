@@ -35,9 +35,3 @@
     margin-left: 0;
     margin-right: 2px;
 }
-
-.attributor-line {
-    height: 1px;
-    background-color: rgba(128, 128, 128, 0.5);
-    margin: 4px 0;
-}
