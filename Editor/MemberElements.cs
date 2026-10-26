@@ -30,6 +30,14 @@ namespace Sarabunari.Attributor.Editor
                 button.SetEnabled(false);
                 button.tooltip = "Attributor: Button methods need no parameters or only optional ones";
             }
+            else if (attr.Mode != EButtonEnableMode.Always)
+            {
+                var playmode = attr.Mode == EButtonEnableMode.Playmode;
+                void Refresh() => button.SetEnabled(Application.isPlaying == playmode);
+                Refresh();
+                // Polled: the inspector isn't always rebuilt on entering Play mode (domain reload off).
+                button.schedule.Execute(Refresh).Every(250);
+            }
             return button;
         }
 

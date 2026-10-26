@@ -47,6 +47,67 @@ namespace Sarabunari.Attributor.Editor
         }
     }
 
+    [CustomPropertyDrawer(typeof(MinMaxSliderAttribute))]
+    public class MinMaxSliderDrawer : PropertyDrawer
+    {
+        public override VisualElement CreatePropertyGUI(SerializedProperty property)
+        {
+            if (property.propertyType != SerializedPropertyType.Vector2)
+                return new HelpBox("MinMaxSlider works on Vector2 fields", HelpBoxMessageType.Warning);
+
+            var attr = (MinMaxSliderAttribute)attribute;
+            var slider = new MinMaxSlider(property.displayName, property.vector2Value.x, property.vector2Value.y, attr.Min, attr.Max);
+            slider.AddToClassList(BaseField<Vector2>.alignedFieldUssClassName);
+            slider.style.flexGrow = 1;
+            slider.BindProperty(property);
+
+            // Typed values are clamped to the limits and kept in order, like dragging.
+            FloatField Number(string axis)
+            {
+                var number = new FloatField { name = axis };
+                number.style.width = 50;
+                number.BindProperty(property.FindPropertyRelative(axis));
+                number.RegisterValueChangedCallback(e =>
+                {
+                    var v = property.vector2Value;
+                    var clamped = axis == "x" ? Mathf.Clamp(e.newValue, attr.Min, v.y) : Mathf.Clamp(e.newValue, v.x, attr.Max);
+                    if (clamped != e.newValue) number.value = clamped;
+                });
+                return number;
+            }
+
+            var row = new VisualElement { style = { flexDirection = FlexDirection.Row } };
+            row.Add(slider);
+            row.Add(Number("x"));
+            row.Add(Number("y"));
+            return row;
+        }
+    }
+
+    [CustomPropertyDrawer(typeof(RequiredAttribute))]
+    public class RequiredDrawer : PropertyDrawer
+    {
+        public override VisualElement CreatePropertyGUI(SerializedProperty property)
+        {
+            if (property.propertyType != SerializedPropertyType.ObjectReference)
+                return new HelpBox("Required works on object reference fields", HelpBoxMessageType.Warning);
+
+            var root = new VisualElement();
+            var field = new PropertyField(property);
+            root.Add(field);
+            var message = ((RequiredAttribute)attribute).Message ?? property.displayName + " is required";
+            var warning = new HelpBox(message, HelpBoxMessageType.Error);
+            warning.AddToClassList("attributor-required");
+            root.Add(warning);
+
+            void Refresh(SerializedProperty p) =>
+                warning.style.display = p.objectReferenceValue == null ? DisplayStyle.Flex : DisplayStyle.None;
+            Refresh(property);
+            field.RegisterValueChangeCallback(e => Refresh(e.changedProperty));
+            return root;
+        }
+    }
+
     [CustomPropertyDrawer(typeof(ExpandAttribute))]
     public class ExpandDrawer : PropertyDrawer
     {

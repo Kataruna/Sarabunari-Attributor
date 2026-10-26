@@ -39,4 +39,23 @@ namespace Sarabunari.Attributor
 
     /// <summary>Object reference shows the referenced object's fields inline.</summary>
     public class ExpandAttribute : PropertyAttribute { }
+
+    /// <summary>Vector2 field picks a range with a two-handle slider (x = min, y = max).</summary>
+    public class MinMaxSliderAttribute : PropertyAttribute
+    {
+        public float Min { get; }
+        public float Max { get; }
+        public MinMaxSliderAttribute(float min, float max)
+        {
+            Min = min;
+            Max = max;
+        }
+    }
+
+    /// <summary>Object reference shows an error box while it is empty.</summary>
+    public class RequiredAttribute : PropertyAttribute
+    {
+        public string Message { get; }
+        public RequiredAttribute(string message = null) => Message = message;
+    }
 }

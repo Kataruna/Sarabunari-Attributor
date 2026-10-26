@@ -111,6 +111,34 @@ namespace Sarabunari.Attributor.Tests
         }
 
         [UnityTest]
+        public IEnumerator MinMaxSlider_ShowsRange_AndClampsTypedValue()
+        {
+            var c = Component<DrawerFixture>();
+            yield return Show(c);
+            Assert.AreEqual(new Vector2(2, 8), window.rootVisualElement.Q<MinMaxSlider>().value);
+            window.rootVisualElement.Q<FloatField>("y").value = 50;
+            for (var i = 0; i < 3; i++) yield return null;
+            editor.serializedObject.Update();
+            Assert.AreEqual(10, editor.serializedObject.FindProperty("range").vector2Value.y);
+        }
+
+        [UnityTest]
+        public IEnumerator Required_WarnsOnlyWhileEmpty()
+        {
+            var c = Component<DrawerFixture>();
+            yield return Show(c);
+            var warning = window.rootVisualElement.Q<HelpBox>(className: "attributor-required");
+            Assert.AreEqual("Canvas missing", warning.text);
+            Assert.AreEqual(DisplayStyle.Flex, warning.resolvedStyle.display);
+
+            editor.serializedObject.FindProperty("canvas").objectReferenceValue = c.gameObject.AddComponent<CanvasGroup>();
+            editor.serializedObject.ApplyModifiedProperties();
+            var until = EditorApplication.timeSinceStartup + 0.5;
+            while (EditorApplication.timeSinceStartup < until) yield return null;
+            Assert.AreEqual(DisplayStyle.None, warning.resolvedStyle.display);
+        }
+
+        [UnityTest]
         public IEnumerator Expand_SelfReference_DoesNotRecurse()
         {
             var a = ScriptableObject.CreateInstance<SelfRefAsset>();

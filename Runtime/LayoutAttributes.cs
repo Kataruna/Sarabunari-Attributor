@@ -36,16 +36,21 @@ namespace Sarabunari.Attributor
         public override bool Foldable => true;
     }
 
+    /// <summary>When a button can be clicked.</summary>
+    public enum EButtonEnableMode { Always, Editor, Playmode }
+
     /// <summary>Draws a method as a button where it is declared.</summary>
     [AttributeUsage(AttributeTargets.Method)]
     public class ButtonAttribute : Attribute
     {
         public string Label { get; }
+        public EButtonEnableMode Mode { get; }
         public int Line { get; }
 
-        public ButtonAttribute(string label = null, [CallerLineNumber] int line = 0)
+        public ButtonAttribute(string label = null, EButtonEnableMode mode = EButtonEnableMode.Always, [CallerLineNumber] int line = 0)
         {
             Label = label;
+            Mode = mode;
             Line = line;
         }
     }

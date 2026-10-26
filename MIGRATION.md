@@ -4,10 +4,10 @@ Attributor and NaughtyAttributes can't be installed in the same project: both re
 
 ## 1. Check for attributes Attributor doesn't have yet
 
-Run this from `Assets/` before you start. Anything it finds needs the workaround in [Not supported yet](#not-supported-yet).
+Run this from `Assets/` before you start. Anything it finds has no Attributor equivalent yet: remove it and handle that field by hand.
 
 ```bash
-grep -rnE 'MinMaxSlider|Required|EButtonEnableMode|ShowIf|HideIf|ReorderableList|Dropdown|InfoBox|ValidateInput|ShowNativeProperty|Label\(|Tag\]|Layer\]|ResizableTextArea|ShowAssetPreview|ProgressBar|CurveRange|MinValue|MaxValue|AnimatorParam|SortingLayer|InputAxis|AllowNesting' --include='*.cs' .
+grep -rnE 'ShowIf|HideIf|ReorderableList|Dropdown|InfoBox|ValidateInput|ShowNativeProperty|Label\(|Tag\]|Layer\]|ResizableTextArea|ShowAssetPreview|ProgressBar|CurveRange|MinValue|MaxValue|AnimatorParam|SortingLayer|InputAxis|AllowNesting' --include='*.cs' .
 ```
 
 ## 2. Swap the packages
@@ -24,6 +24,9 @@ grep -rnE 'MinMaxSlider|Required|EButtonEnableMode|ShowIf|HideIf|ReorderableList
 | `[Foldout("X")]` | `[Fold("X")]` | Now appears where its first field is, not at the bottom. |
 | `[BoxGroup("X")]` | `[Group("X")]` | |
 | `[Button]`, `[Button("Label")]` | same | Now appears where the method is declared. |
+| `[Button("Label", EButtonEnableMode.Playmode)]` | same | |
+| `[MinMaxSlider(a, b)]` | same | `Vector2` fields only. |
+| `[Required]`, `[Required("Message")]` | same | Object reference fields only. Shows an error box instead of NaughtyAttributes' warning. |
 | `[ShowNonSerializedField]` | `[Show]` | |
 | `[ReadOnly]` | `[Locked]` | Only in files that used NaughtyAttributes. `Unity.Collections.ReadOnly` (Jobs) stays as is. |
 | `[HorizontalLine]` | `[Line]` | Color/thickness arguments aren't supported. |
@@ -84,19 +87,9 @@ The field names stay the same, so the references you assigned in scenes and pref
 [Group(2)] [Button] public void HideScore() { ... }
 ```
 
-## Not supported yet
-
-Found in CoSI-Pilot by step 1:
-
-| NaughtyAttributes | Where | Until Attributor supports it |
-|---|---|---|
-| `[Button("…", EButtonEnableMode.Playmode)]` | `UnusualEvent`, `FlyInBackTurnMode`, `Figure8Mode` | Drop the second argument, and start the method with `if (!Application.isPlaying) return;` |
-| `[MinMaxSlider(a, b)]` on `Vector2` | `WindSpeedManager` (3), `PrecisionHoverMode` | Remove it. The field shows as a plain `Vector2` (x = min, y = max). |
-| `[Required("…")]` | `SizeDisplay`, `ViewerDronePosition` | Remove it, and check `if (_canvas == null) Debug.LogError(...)` in `Awake`/`OnValidate` if you relied on the warning. |
-
 ## Behaviour differences to expect
 
 - **Order follows the script.** Groups and buttons appear where they're declared. Inspectors that used to have all their buttons at the bottom will now have them spread through the fields.
 - **Fold state** is remembered until Unity closes, per script and group.
-- **`Locked`, `EnableIf`, `DisableIf`, `OnChange`, `Group`, `Fold`, `Button`** work on a script's own members, not inside nested `[Serializable]` classes. `Line`, `SceneName` and `Expand` work anywhere.
+- **`Locked`, `EnableIf`, `DisableIf`, `OnChange`, `Group`, `Fold`, `Button`** work on a script's own members, not inside nested `[Serializable]` classes. `Line`, `SceneName`, `Expand`, `MinMaxSlider` and `Required` work anywhere.
 - **Button methods may have optional parameters.** Required parameters show a disabled button.

@@ -16,6 +16,7 @@ namespace Sarabunari.Attributor.Tests
         [Button("Go")] void Go() { }
         [Button] public void Save(int x = 5) => last = x;
         [Button] void Needs(int x) { }
+        [Button("Play", EButtonEnableMode.Playmode)] void PlayOnly() { }
 
         [Group(3)] [Button] void A() { }
         [Group(3)] [Button] void B() { }

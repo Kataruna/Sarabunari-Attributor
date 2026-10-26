@@ -62,6 +62,14 @@ namespace Sarabunari.Attributor.Tests
         }
 
         [Test]
+        public void PlaymodeButton_DisabledInEditMode()
+        {
+            var b = ButtonFor(a1, "PlayOnly");
+            Assert.AreEqual("Play", b.text);
+            Assert.IsFalse(b.enabledSelf);
+        }
+
+        [Test]
         public void ButtonLabel_DefaultsToNicifiedName()
         {
             Assert.AreEqual("Increment Counter", ButtonFor(a1, "IncrementCounter").text);
