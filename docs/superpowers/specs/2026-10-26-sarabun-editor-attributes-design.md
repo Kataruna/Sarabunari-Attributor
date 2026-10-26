@@ -1,7 +1,7 @@
 # SarabunEditor: Inspector Attributes — Design
 
 Date: 2026-10-26
-Status: draft, awaiting approval
+Status: approved 2026-10-26
 
 ## Intent
 
@@ -104,7 +104,8 @@ Drawn as (mockup option A, chosen by the user):
 ## Left to the builder (with my recommendations — my calls, not the user's)
 
 - **Package name** (user decided): `com.sarabunari.attributor`.
-- **Namespace.** Recommend `Sarabun` (short `using`).
+- **Namespace** (user decided): `Sarabunari.Attributor` (sibling plugins will use `Sarabunari.<Name>`).
+- **Repo** (user decided): `https://github.com/Kataruna/Sarabunari-Attributor.git` (private).
 - **Declaration-order problem.** Reflection does not reliably interleave fields and methods in source order (they live in separate metadata tables). Recommended approach: every attribute in this package takes a hidden `[CallerLineNumber] int line = 0` constructor parameter; members with no package attribute (plain fields) are located via their `MetadataToken` order relative to neighbours, or by finding their declaration line in the `MonoScript` text. Base-class members come before derived-class members (`ModeModule` is a base class). Builder should pick whichever is robust and say why.
 - **Stacking order on one member** (`[Fold("A")] [Group("B")]` on the same line). Relies on `GetCustomAttributes` returning declaration order (it does in practice under Mono/Roslyn). If that proves unreliable, fall back to an explicit `order` like Unity's `PropertyAttribute.order`.
 - **IMGUI vs UI Toolkit.** Recommend UI Toolkit (`CreateInspectorGUI`), Unity 6's default, using `PropertyField` per serialized property so built-in drawers/decorators keep working.
