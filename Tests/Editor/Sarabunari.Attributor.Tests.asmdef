@@ -1,0 +1,15 @@
+{
+  "name": "Sarabunari.Attributor.Tests",
+  "rootNamespace": "Sarabunari.Attributor.Tests",
+  "references": [
+    "Sarabunari.Attributor",
+    "Sarabunari.Attributor.Editor",
+    "UnityEngine.TestRunner",
+    "UnityEditor.TestRunner"
+  ],
+  "includePlatforms": ["Editor"],
+  "overrideReferences": true,
+  "precompiledReferences": ["nunit.framework.dll"],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"]
+}

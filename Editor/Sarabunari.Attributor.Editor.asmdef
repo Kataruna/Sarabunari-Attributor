@@ -1,0 +1,6 @@
+{
+  "name": "Sarabunari.Attributor.Editor",
+  "rootNamespace": "Sarabunari.Attributor.Editor",
+  "references": ["Sarabunari.Attributor"],
+  "includePlatforms": ["Editor"]
+}
