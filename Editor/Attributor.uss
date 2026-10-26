@@ -1,0 +1,43 @@
+.attributor-box {
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0.35);
+    border-radius: 3px;
+    background-color: rgba(255, 255, 255, 0.03);
+    padding: 3px 6px 4px 6px;
+    margin: 2px 0 4px 0;
+}
+
+.attributor-title {
+    -unity-font-style: bold;
+    margin: 0 0 3px 0;
+}
+
+.attributor-columns {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.attributor-cell {
+    padding-right: 4px;
+}
+
+.attributor-cell .unity-base-field {
+    flex-direction: column;
+    margin-left: 0;
+}
+
+.attributor-cell .unity-base-field__label {
+    min-width: 0;
+    width: auto;
+}
+
+.attributor-cell.unity-button {
+    margin-left: 0;
+    margin-right: 2px;
+}
+
+.attributor-line {
+    height: 1px;
+    background-color: rgba(128, 128, 128, 0.5);
+    margin: 4px 0;
+}

@@ -1,0 +1,99 @@
+using System.Reflection;
+using UnityEditor;
+using UnityEditor.UIElements;
+using UnityEngine;
+using UnityEngine.UIElements;
+
+namespace Sarabunari.Attributor.Editor
+{
+    /// <summary>Turns a layout tree into UI Toolkit elements.</summary>
+    public static class InspectorBuilder
+    {
+        const string StylePath = "Packages/com.sarabunari.attributor/Editor/Attributor.uss";
+
+        public static VisualElement Build(SerializedObject so, GroupNode root)
+        {
+            var element = new VisualElement();
+            var style = AssetDatabase.LoadAssetAtPath<StyleSheet>(StylePath);
+            if (style != null) element.styleSheets.Add(style);
+
+            var script = so.FindProperty("m_Script");
+            if (script != null)
+            {
+                var field = new PropertyField(script) { name = "m_Script" };
+                field.SetEnabled(false);
+                element.Add(field);
+            }
+
+            AddChildren(element, so, root);
+            return element;
+        }
+
+        public static VisualElement CreateMember(SerializedObject so, MemberEntry m)
+        {
+            if (m.Kind != MemberKind.Field) return null;
+            if (m.Info is FieldInfo info && info.IsDefined(typeof(HideInInspector), true)) return null;
+            var property = so.FindProperty(m.Name);
+            return property == null ? null : new PropertyField(property) { name = m.Name };
+        }
+
+        static void AddChildren(VisualElement container, SerializedObject so, GroupNode group)
+        {
+            var target = container;
+            if (group.Columns > 1)
+            {
+                target = new VisualElement();
+                target.AddToClassList("attributor-columns");
+                container.Add(target);
+            }
+
+            foreach (var child in group.Children)
+            {
+                var element = child is GroupNode g ? CreateGroup(so, g) : CreateMember(so, ((MemberNode)child).Member);
+                if (element == null) continue;
+                if (group.Columns > 1)
+                {
+                    element.AddToClassList("attributor-cell");
+                    element.style.width = Length.Percent(100f / group.Columns);
+                    // Columns are narrow: put labels above fields instead of Unity's aligned label column.
+                    element.RegisterCallback<GeometryChangedEvent>(_ =>
+                        element.Query(className: BaseField<int>.alignedFieldUssClassName).ForEach(f => f.RemoveFromClassList(BaseField<int>.alignedFieldUssClassName)));
+                }
+                target.Add(element);
+            }
+        }
+
+        static VisualElement CreateGroup(SerializedObject so, GroupNode group)
+        {
+            VisualElement element;
+            if (group.Title == null)
+            {
+                element = new VisualElement();
+                element.AddToClassList("attributor-row");
+            }
+            else if (group.Foldable)
+            {
+                var key = "Attributor:" + so.targetObject.GetType().FullName + group.Key;
+                var foldout = new Foldout { text = group.Title, value = SessionState.GetBool(key, true) };
+                foldout.RegisterValueChangedCallback(e =>
+                {
+                    if (e.target == foldout) SessionState.SetBool(key, e.newValue);
+                });
+                foldout.AddToClassList("attributor-fold");
+                element = foldout;
+            }
+            else
+            {
+                element = new VisualElement();
+                element.AddToClassList("attributor-box");
+                var title = new Label(group.Title);
+                title.AddToClassList("attributor-title");
+                element.Add(title);
+            }
+
+            element.name = group.Key;
+            AddChildren(element, so, group);
+            return element;
+        }
+    }
+}

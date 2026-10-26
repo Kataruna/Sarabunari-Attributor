@@ -1,0 +1,7 @@
+{
+  "name": "Sarabunari.Attributor.Tests.Fixtures",
+  "rootNamespace": "Sarabunari.Attributor.Tests",
+  "references": ["Sarabunari.Attributor"],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"]
+}
