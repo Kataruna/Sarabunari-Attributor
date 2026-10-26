@@ -78,8 +78,16 @@ namespace Sarabunari.Attributor.Editor
                     element.AddToClassList("attributor-cell");
                     element.style.width = Length.Percent(100f / group.Columns);
                     // Columns are narrow: put labels above fields instead of Unity's aligned label column.
+                    // Alignment may already have set an inline label width (near zero in right columns): clear it too.
                     element.RegisterCallback<GeometryChangedEvent>(_ =>
-                        element.Query(className: BaseField<int>.alignedFieldUssClassName).ForEach(f => f.RemoveFromClassList(BaseField<int>.alignedFieldUssClassName)));
+                        element.Query(className: BaseField<int>.alignedFieldUssClassName).ForEach(f =>
+                        {
+                            f.RemoveFromClassList(BaseField<int>.alignedFieldUssClassName);
+                            var label = f.Q<Label>(className: BaseField<int>.labelUssClassName);
+                            if (label == null) return;
+                            label.style.width = StyleKeyword.Null;
+                            label.style.minWidth = StyleKeyword.Null;
+                        }));
                 }
                 target.Add(element);
             }
