@@ -34,7 +34,7 @@ Exit code `0` = all passed, `2` = test failures, anything else = compile/launch 
 
 ## Review Focus
 
-1. **A class with no Attributor attributes** must look exactly like Unity's default inspector → `AttributorEditor.CreateInspectorGUI` returns `null` (Task 4 test).
+1. **A class with no Attributor attributes** must look exactly like Unity's default (UI Toolkit) inspector, and drawers in its nested `[Serializable]` classes must still render → plain path uses `InspectorElement.FillDefaultInspector` (Task 4 tests).
 2. **Inherited members across files** (CoSI-Pilot's `ModeModule` is a base class): base-class members first, each class ordered from its own source file (Task 3 test).
 3. **Script source not findable** (class name ≠ file name, class in a DLL) and **field name used in a method body above its declaration**: no exception; buttons fall back to the end of their class, fields keep token order (Task 3 tests).
 4. **Button methods with optional parameters** (`ImageSaver.SaveImage(InputAction.CallbackContext _ = default)`) must invoke; methods with required parameters show a disabled button with a tooltip instead of throwing (Task 5 tests).
@@ -144,7 +144,7 @@ Then edit `../AttributorHost/Packages/manifest.json`: add `"com.sarabunari.attri
 
 **Interfaces:**
 - Consumes: `MemberEntry`, `MemberKind` (Task 2); attributes (Task 1).
-- Produces: `static List<MemberEntry> MemberCollector.Collect(Type type, Func<Type, string> sourceOf = null)` — `sourceOf` returns a class's script text or null; default implementation finds the `MonoScript` whose `GetClass() == type` via `AssetDatabase.FindAssets("t:MonoScript " + type.Name)`. Also `static bool MemberCollector.HasAnyAttributorAttribute(Type type)` (any member in the hierarchy carries a Task 1 attribute).
+- Produces: `static List<MemberEntry> MemberCollector.Collect(Type type, Func<Type, string> sourceOf = null)` — `sourceOf` returns a class's script text or null; default implementation finds the `MonoScript` whose `GetClass() == type` via `AssetDatabase.FindAssets("t:MonoScript " + type.Name)`. Also `static bool MemberCollector.HasAnyAttributorAttribute(Type type)` (any member in the hierarchy carries a `LevelAttribute`, `ButtonAttribute`, `ShowAttribute`, `LockedAttribute`, `EnableIf`/`DisableIf` or `OnChange`). Both methods cache results in a static `Dictionary<Type, …>` (cleared by domain reload) — the editor is catch-all, so they run on every selection.
 
 Rules:
 - Walk the hierarchy **base-first**, stopping before any type whose namespace starts with `UnityEngine`/`UnityEditor`.
@@ -175,22 +175,23 @@ Rules:
 
 **Files:**
 - Create: `Editor/AttributorEditor.cs`, `Editor/InspectorBuilder.cs`, `Editor/Attributor.uss`
-- Test: `Tests/Editor/InspectorBuilderTests.cs`, fixtures `Tests/Editor/Fixtures/BorderFixture.cs` (mirrors CoSI-Pilot `ModeModule` corners: `[Fold("Border")][Group("Outer",2)] public Transform tl, tr, bl, br;` and `Inner` likewise, plus a `[Header("H")] public int afterGroup;` and `[HideInInspector] public int hidden;` inside `Group("Border/Outer")`), `Tests/Editor/Fixtures/PlainFixture.cs` (no Attributor attributes)
+- Test: `Tests/Editor/InspectorBuilderTests.cs`, fixtures `Tests/Editor/Fixtures/BorderFixture.cs` (mirrors CoSI-Pilot `ModeModule` corners: `[Fold("Border")][Group("Outer",2)] public Transform tl, tr, bl, br;` and `Inner` likewise, plus a `[Header("H")] public int afterGroup;` and `[HideInInspector] public int hidden;` inside `Group("Border/Outer")`), `Tests/Editor/Fixtures/PlainFixture.cs` (no Attributor attributes on its own members; holds a nested `[Serializable] class Inner { [SceneName] public string scene; }` field — `PlainClass_NestedSceneName_Renders` needs Task 6, so mark it `[Ignore("Task 6")]` until then)
 
 **Interfaces:**
 - Consumes: `MemberCollector.Collect`, `HasAnyAttributorAttribute`, `LayoutBuilder.Build`.
 - Produces:
-  - `[CustomEditor(typeof(UnityEngine.Object), true), CanEditMultipleObjects] public class AttributorEditor : UnityEditor.Editor` — `CreateInspectorGUI()` returns `null` when `!HasAnyAttributorAttribute(target.GetType())` (Unity then draws its default IMGUI inspector); otherwise builds, logs `warnings` via `Debug.LogWarning`, returns the root.
+  - `[CustomEditor(typeof(UnityEngine.Object), true), CanEditMultipleObjects] public class AttributorEditor : UnityEditor.Editor` — `CreateInspectorGUI()` — when `!HasAnyAttributorAttribute(target.GetType())`, creates `root`, calls `InspectorElement.FillDefaultInspector(root, serializedObject, this)` and returns it (never `null`: that would drop to IMGUI, where `CreatePropertyGUI`-only drawers show "No GUI Implemented"); otherwise builds, logs `warnings` via `Debug.LogWarning`, returns the root.
   - `static VisualElement InspectorBuilder.Build(SerializedObject so, GroupNode root)`.
   - `static VisualElement InspectorBuilder.CreateMember(SerializedObject so, MemberEntry m)` — hook point extended in Task 5; in this task: `Field` → `PropertyField(so.FindProperty(m.Name))` named `m.Name`; returns `null` when the property is null or the field has `[HideInInspector]`.
-  - Element contract (tests rely on it): titled `Group` → `VisualElement` class `attributor-box` with a `Label` class `attributor-title` and content; `Fold` → `Foldout` class `attributor-fold`, `text = Title`, `viewDataKey = type.FullName + key` (Unity persists fold state); bare row → `VisualElement` class `attributor-row`. Every group element is named its `Key`. A group with `Columns > 1` puts children in a container class `attributor-columns` (`flex-direction: row; flex-wrap: wrap`), each child with `style.width = Length.Percent(100f / Columns)` and class `attributor-cell`.
+  - Element contract (tests rely on it): titled `Group` → `VisualElement` class `attributor-box` with a `Label` class `attributor-title` and content; `Fold` → `Foldout` class `attributor-fold`, `text = Title`, open state read/written with `SessionState.GetBool/SetBool(type.FullName + key, true)`; bare row → `VisualElement` class `attributor-row`. Every group element is named its `Key`. A group with `Columns > 1` puts children in a container class `attributor-columns` (`flex-direction: row; flex-wrap: wrap`), each child with `style.width = Length.Percent(100f / Columns)` and class `attributor-cell`.
   - `Attributor.uss` (loaded from `Packages/com.sarabunari.attributor/Editor/Attributor.uss`): box border/padding/margin like the Unity HelpBox; inside `.attributor-cell`, `.unity-base-field` uses `flex-direction: column` and `.unity-base-field__label` has `min-width: 0` (label above field).
   - The disabled `m_Script` field is drawn first, as Unity's default inspector does.
 
 - [ ] **Step 1: Write failing tests** (create a `GameObject` with the fixture, `Editor.CreateEditor(component)`, call `CreateInspectorGUI()`, query with `UQuery`; destroy objects in `TearDown`)
 
 ```csharp
-[Test] public void PlainClass_ReturnsNull()                       // PlainFixture → null
+[Test] public void PlainClass_DefaultInspector()                  // PlainFixture → non-null, one PropertyField per serialized field, no attributor-* classes
+[Test] public void PlainClass_NestedSceneName_Renders()           // PlainFixture has a nested [Serializable] with [SceneName] string → after rootVisualElement.Bind(so), a PopupField<string> exists
 [Test] public void Border_IsFoldout_ContainsOuterThenInnerBoxes()  // Q<Foldout>("/Border").text=="Border"; its attributor-box children named "/Border/Outer", "/Border/Inner" in that order
 [Test] public void Outer_HasTwoColumns_FourFieldsInOrder()        // "/Border/Outer" has attributor-columns with 4 attributor-cell; PropertyFields named tl,tr,bl,br
 [Test] public void HiddenField_NotDrawn()                         // Q<PropertyField>("hidden") == null
@@ -263,7 +264,7 @@ Rules:
 ```
 
 - [ ] **Step 2: RUN TESTS** — expected: compile error.
-- [ ] **Step 3: Implement the three drawers.**
+- [ ] **Step 3: Implement the three drawers**, and remove the `[Ignore("Task 6")]` from `PlainClass_NestedSceneName_Renders`.
 - [ ] **Step 4: RUN TESTS** — expected: exit 0, all passed.
 - [ ] **Step 5: Commit** — `feat: Line, SceneName, Expand drawers`.
 

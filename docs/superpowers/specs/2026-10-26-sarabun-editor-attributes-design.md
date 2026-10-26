@@ -30,7 +30,7 @@ Success = CoSI-Pilot runs with NaughtyAttributes removed, every current usage mi
 
 - Odin-style serialization (dictionaries, interfaces, etc.).
 - Validators (`Required`, `ValidateInput`, `MinValue`…), `ReorderableList`, tabs, `ShowIf`/`HideIf`, `Dropdown`, `Label`, `InfoBox` — not used in CoSI-Pilot. Add when needed.
-- Grouping/`Button` inside nested `[Serializable]` classes. (Attributes that are plain property drawers — `Locked`, `Line`, `SceneName` — will naturally work there anyway.)
+- Grouping/`Button` and the field modifiers (`Locked`, `EnableIf`, `DisableIf`, `OnChange`) inside nested `[Serializable]` classes — modifiers are applied by the editor so they stack with any drawer, which limits them to top-level members in v1. (`Line`, `SceneName`, `Expand` are real drawers and do work in nested classes.)
 - The "box is the rectangle" visual layout (mockup option B). Possible later as a group style.
 
 ## Anti-goals
@@ -111,7 +111,7 @@ Drawn as (mockup option A, chosen by the user):
 - **IMGUI vs UI Toolkit.** Recommend UI Toolkit (`CreateInspectorGUI`), Unity 6's default, using `PropertyField` per serialized property so built-in drawers/decorators keep working.
 - **Multi-column fields.** Label above the field (as in the mockup) since columns are narrow; 1-column groups use the normal label-left layout.
 - **Conflicts on the same group.** If one member says `Fold("Border")` and another `Group("Border")`, the level is collapsible. If members disagree on column count, the largest wins. Log a warning in both cases.
-- **Fold state** persisted per (type, group path) in `SessionState` or `EditorPrefs`.
+- **Fold state** persisted per (type, group path) in `SessionState`.
 - **Buttons:** methods with no parameters, or all-optional parameters (CoSI-Pilot's `ImageSaver.SaveImage(InputAction.CallbackContext _ = default)` must work). Invoke on all selected objects; record undo / mark dirty in edit mode. Label defaults to nicified method name.
 - **`Show`:** fields only (matches current use); properties later if wanted. Refresh while in play mode.
 - **`Expand`:** guard against infinite recursion; the expanded object uses this same inspector so its attributes work.
