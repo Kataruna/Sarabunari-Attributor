@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Attributor Manual</title>
+<meta name="description" content="Inspector attributes for Unity 6: nested groups with columns, buttons where you declare them, and field helpers.">
+<style>
+:root {
+  --bg: #fafaf9; --fg: #1c1c1e; --muted: #5f6368; --card: #ffffff; --border: #e3e3e0;
+  --code-bg: #f3f3f1; --accent: #2f6fde; --kw: #a626a4; --ty: #0f7b8a; --str: #50a14f; --cm: #8a8f98;
+  /* inspector mock: always Unity's dark skin */
+  --u-bg: #383838; --u-fg: #d2d2d2; --u-field: #2a2a2a; --u-border: #212121; --u-box: #3e3e3e; --u-btn: #585858;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161618; --fg: #e8e8ea; --muted: #a0a0a8; --card: #1e1e21; --border: #2e2e33;
+    --code-bg: #232327; --accent: #7aa7ff; --kw: #d18ff0; --ty: #5fc4d1; --str: #9bd38a; --cm: #7c818a;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161618; --fg: #e8e8ea; --muted: #a0a0a8; --card: #1e1e21; --border: #2e2e33;
+  --code-bg: #232327; --accent: #7aa7ff; --kw: #d18ff0; --ty: #5fc4d1; --str: #9bd38a; --cm: #7c818a;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+a { color: var(--accent); }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px 80px; }
+header { padding: 56px 0 24px; }
+h1 { font-size: 2.4rem; margin: 0 0 8px; letter-spacing: -0.02em; }
+header p { color: var(--muted); margin: 0; font-size: 1.1rem; max-width: 640px; }
+nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 24px 0 8px; }
+nav a { font-size: 0.85rem; text-decoration: none; padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px; color: var(--fg); background: var(--card); }
+nav a:hover { border-color: var(--accent); }
+h2 { font-size: 1.5rem; margin: 56px 0 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+h3 { font-size: 1.15rem; margin: 0 0 4px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+p { margin: 0 0 12px; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.88em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+pre { margin: 0; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; }
+pre code { background: none; padding: 0; font-size: inherit; }
+.k { color: var(--kw); } .t { color: var(--ty); } .s { color: var(--str); } .c { color: var(--cm); }
+.attr { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 16px 0; scroll-margin-top: 16px; }
+.attr > p { color: var(--muted); }
+.example { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-top: 12px; }
+@media (max-width: 760px) { .example { grid-template-columns: 1fr; } }
+.cap { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 4px; }
+ul.notes { padding-left: 20px; } ul.notes li { margin-bottom: 6px; }
+
+/* Unity inspector mock */
+.insp { background: var(--u-bg); color: var(--u-fg); border-radius: 8px; padding: 8px 10px; font: 12px/1.4 "Inter", system-ui, sans-serif; border: 1px solid #000; }
+.r { display: flex; align-items: center; min-height: 22px; gap: 6px; margin: 2px 0; }
+.r > .l { width: 40%; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.f { flex: 1; min-width: 0; background: var(--u-field); border: 1px solid var(--u-border); border-radius: 3px; padding: 1px 6px; height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; justify-content: space-between; }
+.f.obj::after { content: "◎"; opacity: 0.7; }
+.f.pop::after { content: "▾"; opacity: 0.7; }
+.chk { width: 14px; height: 14px; background: var(--u-field); border: 1px solid var(--u-border); border-radius: 2px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; }
+.off { opacity: 0.45; }
+.box { background: var(--u-box); border: 1px solid rgba(0,0,0,0.35); border-radius: 3px; padding: 3px 6px 4px; margin: 2px 0 4px; }
+.box > .ti { font-weight: 700; margin-bottom: 3px; }
+.fold > .ti { margin: 2px 0; } .fold > .ti::before { content: "▾ "; opacity: 0.7; }
+.fold.closed > .ti::before { content: "▸ "; }
+.fold > .in { padding-left: 14px; }
+.cols { display: flex; flex-wrap: wrap; }
+.cols > * { padding-right: 4px; }
+.cols .r { flex-direction: column; align-items: stretch; gap: 1px; }
+.cols .r > .l { width: auto; }
+.btn { background: var(--u-btn); border: 1px solid var(--u-border); border-radius: 3px; text-align: center; padding: 2px 6px; margin: 2px 0; }
+.cols > .btn { margin-right: 4px; padding-right: 6px; }
+.hr { height: 1px; background: rgba(128,128,128,0.5); margin: 4px 0; }
+.err { display: flex; gap: 6px; align-items: center; background: #4a2c2c; border: 1px solid #6b3434; border-radius: 3px; padding: 6px; margin: 2px 0 4px; }
+.err::before { content: "⛔"; }
+.mm { flex: 1; display: flex; align-items: center; gap: 4px; min-width: 0; }
+.track { flex: 1; height: 4px; background: var(--u-field); border-radius: 2px; position: relative; }
+.track span { position: absolute; top: -3px; height: 10px; background: #8a8a8a; border-radius: 3px; }
+.num { width: 42px; flex: none; }
+.hint { color: #9a9a9a; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Attributor</h1>
+  <p>Inspector attributes for Unity 6: nested groups with columns, buttons where you declare them, and a few field helpers.</p>
+  <nav>
+    <a href="#install">Install</a><a href="#group">Group</a><a href="#row">Group (row)</a><a href="#fold">Fold</a><a href="#nesting">Nesting</a>
+    <a href="#button">Button</a><a href="#show">Show</a><a href="#locked">Locked</a><a href="#line">Line</a>
+    <a href="#enableif">EnableIf / DisableIf</a><a href="#onchange">OnChange</a><a href="#expand">Expand</a>
+    <a href="#scenename">SceneName</a><a href="#minmax">MinMaxSlider</a><a href="#required">Required</a><a href="#notes">Notes</a>
+  </nav>
+</header>
+
+<h2 id="install">Install</h2>
+<p>Package Manager → <b>+</b> → <b>Install package from git URL</b>, then paste:</p>
+<pre><code>https://github.com/Kataruna/Sarabunari-Attributor.git</code></pre>
+<p style="margin-top:12px">Add <code>#v0.2.1</code> to the end to pin a version. Then in your scripts:</p>
+<pre><code><span class="k">using</span> Sarabunari.Attributor;</code></pre>
+
+<h2>Layout</h2>
+
+<section class="attr" id="group">
+  <h3>[Group("Title", columns)]</h3>
+  <p>An always-open box with a title. Members with the same title share one box. The number sets how many columns it has; leave it out for one.</p>
+  <div class="example">
+    <div><div class="cap">Code</div><pre><code>[<span class="t">Group</span>(<span class="s">"Stats"</span>)] <span class="k">public int</span> health = <span class="s">100</span>;
+[<span class="t">Group</span>(<span class="s">"Stats"</span>)] <span class="k">public float</span> speed = <span class="s">4.5f</span>;
+
+[<span class="t">Group</span>(<span class="s">"Colors"</span>, <span class="s">2</span>)] <span class="k">public</span> <span class="t">Color</span> primary;
+[<span class="t">Group</span>(<span class="s">"Colors"</span>, <span class="s">2</span>)] <span class="k">public</span> <span class="t">Color</span> secondary;</code></pre></div>
+    <div><div class="cap">Inspector</div><div class="insp">
+      <div class="box"><div class="ti">Stats</div>
+        <div class="r"><span class="l">Health</span><span class="f">100</span></div>
+        <div class="r"><span class="l">Speed</span><span class="f">4.5</span></div></div>
+      <div class="box"><div class="ti">Colors</div><div class="cols">
+        <div class="r" style="width:50%"><span class="l">Primary</span><span class="f" style="background:#d9534f"></span></div>
+        <div class="r" style="width:50%"><span class="l">Secondary</span><span class="f" style="background:#3c78d8"></span></div></div></div>
+    </div></div>
+  </div>
+</section>
+
+<section class="attr" id="row">
+  <h3>[Group(columns)]</h3>
+  <p>A row with no box or title. Members declared one after another share the row. Handy for lining up buttons.</p>
+  <div class="example">
+    <div><div class="cap">Code</div><pre><code>[<span class="t">Group</span>(<span class="s">3</span>)] [<span class="t">Button</span>] <span class="k">void</span> Spawn() { }
+[<span class="t">Group</span>(<span class="s">3</span>)] [<span class="t">Button</span>] <span class="k">void</span> Reset() { }
+[<span class="t">Group</span>(<span class="s">3</span>)] [<span class="t">Button</span>] <span class="k">void</span> Clear() { }</code></pre></div>
+    <div><div class="cap">Inspector</div><div class="insp">
+      <div class="cols"><div class="btn" style="flex:1">Spawn</div><div class="btn" style="flex:1">Reset</div><div class="btn" style="flex:1">Clear</div></div>
+    </div></div>
+  </div>
+</section>
+
+<section class="attr" id="fold">
+  <h3>[Fold("Title", columns)]</h3>
+  <p>Like <code>Group</code>, but it can be collapsed. Whether it's open is remembered for the editor session.</p>
+  <div class="example">
+    <div><div class="cap">Code</div><pre><code>[<span class="t">Fold</span>(<span class="s">"Audio"</span>)] <span class="k">public</span> <span class="t">AudioClip</span> jump;
+[<span class="t">Fold</span>(<span class="s">"Audio"</span>)] <span class="k">public</span> <span class="t">AudioClip</span> land;
+[<span class="t">Fold</span>(<span class="s">"Debug"</span>)] <span class="k">public bool</span> drawGizmos;</code></pre></div>
+    <div><div class="cap">Inspector</div><div class="insp">
+      <div class="fold"><div class="ti">Audio</div><div class="in">
+        <div class="r"><span class="l">Jump</span><span class="f obj">jump_01 (AudioClip)</span></div>
+        <div class="r"><span class="l">Land</span><span class="f obj">land_01 (AudioClip)</span></div></div></div>
+      <div class="fold closed"><div class="ti">Debug</div></div>
+    </div></div>
+  </div>
+</section>
+
+<section class="attr" id="nesting">
+  <h3>Nesting</h3>
+  <p>Use <code>/</code> in a title to nest boxes, or stack <code>Fold</code> and <code>Group</code> attributes. They nest left to right.</p>
+  <div class="example">
+    <div><div class="cap">Code</div><pre><code>[<span class="t">Fold</span>(<span class="s">"Corners"</span>)] [<span class="t">Group</span>(<span class="s">"Outer"</span>, <span class="s">2</span>)]
+[<span class="t">SerializeField</span>] <span class="t">Transform</span> topLeft, topRight,
+                           bottomLeft, bottomRight;
+
+[<span class="t">Group</span>(<span class="s">"Border/Inner"</span>, <span class="s">2</span>)]
+[<span class="t">SerializeField</span>] <span class="k">float</span> left, right;</code></pre></div>
+    <div><div class="cap">Inspector</div><div class="insp">
+      <div class="fold"><div class="ti">Corners</div><div class="in">
+        <div class="box"><div class="ti">Outer</div><div class="cols">
+          <div class="r" style="width:50%"><span class="l">Top Left</span><span class="f obj">TopLeft</span></div>
+          <div class="r" style="width:50%"><span class="l">Top Right</span><span class="f obj">TopRight</span></div>
+          <div class="r" style="width:50%"><span class="l">Bottom Left</span><span class="f obj">BottomLeft</span></div>
+          <div class="r" style="width:50%"><span class="l">Bottom Right</span><span class="f obj">BottomRight</span></div></div></div></div></div>
+      <div class="box"><div class="ti">Border</div>
+        <div class="box"><div class="ti">Inner</div><div class="cols">
+          <div class="r" style="width:50%"><span class="l">Left</span><span class="f">0</span></div>
+          <div class="r" style="width:50%"><span class="l">Right</span><span class="f">0</span></div></div></div></div>
+    </div></div>
+  </div>
+</section>
+
+<h2>Buttons and read-only values</h2>
+
+<section class="attr" id="button">
+  <h3>[Button] · [Button("Label", mode)]</h3>
+  <p>Draws a method as a button, in the place it's declared. The method can take only optional parameters. Clicking is recorded for Undo and marks the scene dirty. <code>EButtonEnableMode.Playmode</code> makes it clickable only in Play mode; <code>Editor</code> only outside it.</p>
+  <div class="example">
+    <div><div class="cap">Code</div><pre><code>[<span class="t">Button</span>]
+<span class="k">void</span> Randomize() { <span class="c">/* ... */</span> }
+
+[<span class="t">Button</span>(<span class="s">"Fire!"</span>, <span class="t">EButtonEnableMode</span>.Playmode)]
+<span class="k">void</span> Fire(<span class="k">int</span> count = <span class="s">1</span>) { <span class="c">/* ... */</span> }</code></pre></div>
+    <div><div class="cap">Inspector <span class="hint">(edit mode)</span></div><div class="insp">
+      <div class="btn">Randomize</div>
+      <div class="btn off">Fire!</div>
+    </div></div>
+  </div>
+</section>
+
+<section class="attr" id="show">
+  <h3>[Show]</h3>
+  <p>Shows the value of a field Unity doesn't save, read-only, refreshed while the inspector is open.</p>
+  <div class="example">
+    <div><div class="cap">Code</div><pre><code>[<span class="t">Show</span>] <span class="k">float</span> currentSpeed;
+[<span class="t">Show</span>] <span class="t">GameObject</span> target;</code></pre></div>
+    <div><div class="cap">Inspector</div><div class="insp">
+      <div class="r off"><span class="l">Current Speed</span><span class="f">3.27</span></div>
+      <div class="r off"><span class="l">Target</span><span class="f">null</span></div>
+    </div></div>
+  </div>
+</section>
+
+<h2>Field helpers</h2>
+
+<section class="attr" id="locked">
+  <h3>[Locked]</h3>
+  <p>Shows the field greyed out so it can't be edited in the inspector.</p>
+  <div class="example">
+    <div><div class="cap">Code</div><pre><code>[<span class="t">Locked</span>] <span class="k">public string</span> id = <span class="s">"enemy-07"</span>;</code></pre></div>
+    <div><div class="cap">Inspector</div><div class="insp">
+      <div class="r off"><span class="l">Id</span><span class="f">enemy-07</span></div>
+    </div></div>
+  </div>
+</section>
+
+<section class="attr" id="line">
+  <h3>[Line]</h3>
+  <p>A separator line above the field.</p>
+  <div class="example">
+    <div><div class="cap">Code</div><pre><code><span class="k">public int</span> lives = <span class="s">3</span>;
+[<span class="t">Line</span>]
+<span class="k">public int</span> score;</code></pre></div>
+    <div><div class="cap">Inspector</div><div class="insp">
+      <div class="r"><span class="l">Lives</span><span class="f">3</span></div>
+      <div class="hr"></div>
+      <div class="r"><span class="l">Score</span><span class="f">0</span></div>
+    </div></div>
+  </div>
+</section>
+
+<section class="attr" id="enableif">
+  <h3>[EnableIf("name")] · [DisableIf("name")]</h3>
+  <p><code>EnableIf</code> makes the field editable only while a bool field, property or method is <code>true</code>. <code>DisableIf</code> greys it out while it's <code>true</code>.</p>
+  <div class="example">
+    <div><div class="cap">Code</div><pre><code><span class="k">public bool</span> useCamera;
+
+[<span class="t">EnableIf</span>(<span class="s">"useCamera"</span>)]
+<span class="k">public</span> <span class="t">Camera</span> cam;
+
+[<span class="t">DisableIf</span>(<span class="s">"IsLocked"</span>)]
+<span class="k">public float</span> zoom = <span class="s">1</span>;
+<span class="k">bool</span> IsLocked() =&gt; useCamera;</code></pre></div>
+    <div><div class="cap">Inspector <span class="hint">(useCamera off)</span></div><div class="insp">
+      <div class="r"><span class="l">Use Camera</span><span class="chk"></span></div>
+      <div class="r off"><span class="l">Cam</span><span class="f obj">None (Camera)</span></div>
+      <div class="r"><span class="l">Zoom</span><span class="f">1</span></div>
+    </div></div>
+  </div>
+</section>
+
+<section class="attr" id="onchange">
+  <h3>[OnChange("Method")]</h3>
+  <p>Calls a method with no parameters after the field's value changes while its inspector is open. That includes edits, Undo, and code that writes the field in Play mode.</p>
+  <div class="example">
+    <div><div class="cap">Code</div><pre><code>[<span class="t">OnChange</span>(<span class="s">"ApplyColor"</span>)]
+<span class="k">public</span> <span class="t">Color</span> tint = <span class="t">Color</span>.white;
+
+<span class="k">void</span> ApplyColor() =&gt;
+    GetComponent&lt;<span class="t">Renderer</span>&gt;().sharedMaterial.color = tint;</code></pre></div>
+    <div><div class="cap">Inspector</div><div class="insp">
+      <div class="r"><span class="l">Tint</span><span class="f" style="background:#f0f0f0"></span></div>
+      <div class="hint" style="margin-top:6px">Editing Tint calls ApplyColor()</div>
+    </div></div>
+  </div>
+</section>
+
+<section class="attr" id="expand">
+  <h3>[Expand]</h3>
+  <p>For an object reference: shows the referenced asset's fields in a foldout right under the field, so you can edit them without leaving this inspector.</p>
+  <div class="example">
+    <div><div class="cap">Code</div><pre><code>[<span class="t">Expand</span>] <span class="k">public</span> <span class="t">WeaponConfig</span> weapon;</code></pre></div>
+    <div><div class="cap">Inspector</div><div class="insp">
+      <div class="r"><span class="l">Weapon</span><span class="f obj">Rifle (WeaponConfig)</span></div>
+      <div class="fold"><div class="ti">Rifle</div><div class="in">
+        <div class="r"><span class="l">Damage</span><span class="f">12</span></div>
+        <div class="r"><span class="l">Fire Rate</span><span class="f">8</span></div></div></div>
+    </div></div>
+  </div>
+</section>
+
+<section class="attr" id="scenename">
+  <h3>[SceneName]</h3>
+  <p>On a <code>string</code>: pick a scene from the enabled scenes in Build Settings. A scene that's no longer listed shows as <i>(missing)</i>.</p>
+  <div class="example">
+    <div><div class="cap">Code</div><pre><code>[<span class="t">SceneName</span>] <span class="k">public string</span> nextLevel;</code></pre></div>
+    <div><div class="cap">Inspector</div><div class="insp">
+      <div class="r"><span class="l">Next Level</span><span class="f pop">Level02</span></div>
+    </div></div>
+  </div>
+</section>
+
+<section class="attr" id="minmax">
+  <h3>[MinMaxSlider(min, max)]</h3>
+  <p>On a <code>Vector2</code>: a two-handle slider with number boxes. <code>x</code> is the low end and <code>y</code> the high end; typed values are kept within the limits and in order.</p>
+  <div class="example">
+    <div><div class="cap">Code</div><pre><code>[<span class="t">MinMaxSlider</span>(<span class="s">0</span>, <span class="s">10</span>)]
+<span class="k">public</span> <span class="t">Vector2</span> spawnDelay = <span class="k">new</span>(<span class="s">2</span>, <span class="s">6</span>);</code></pre></div>
+    <div><div class="cap">Inspector</div><div class="insp">
+      <div class="r"><span class="l">Spawn Delay</span><span class="mm"><span class="track"><span style="left:20%;width:40%"></span></span><span class="f num">2</span><span class="f num">6</span></span></div>
+    </div></div>
+  </div>
+</section>
+
+<section class="attr" id="required">
+  <h3>[Required] · [Required("Message")]</h3>
+  <p>On an object reference: shows an error box under the field while it's empty.</p>
+  <div class="example">
+    <div><div class="cap">Code</div><pre><code>[<span class="t">Required</span>(<span class="s">"Assign the canvas"</span>)]
+<span class="k">public</span> <span class="t">CanvasGroup</span> canvas;</code></pre></div>
+    <div><div class="cap">Inspector</div><div class="insp">
+      <div class="r"><span class="l">Canvas</span><span class="f obj">None (Canvas Group)</span></div>
+      <div class="err">Assign the canvas</div>
+    </div></div>
+  </div>
+</section>
+
+<h2 id="notes">Notes</h2>
+<ul class="notes">
+  <li><code>Locked</code>, <code>EnableIf</code>, <code>DisableIf</code>, <code>OnChange</code>, <code>Group</code>, <code>Fold</code>, <code>Button</code> and <code>Show</code> work on members of a <code>MonoBehaviour</code> or <code>ScriptableObject</code>, not inside nested <code>[Serializable]</code> classes. <code>Line</code>, <code>SceneName</code>, <code>Expand</code>, <code>MinMaxSlider</code> and <code>Required</code> work anywhere.</li>
+  <li>Scripts that use none of these attributes get Unity's normal inspector.</li>
+  <li>Can't be installed alongside NaughtyAttributes, since both replace the inspector. To switch, see the <a href="https://github.com/Kataruna/Sarabunari-Attributor/blob/main/MIGRATION.md">migration guide</a>.</li>
+</ul>
+</div>
+</body>
+</html>

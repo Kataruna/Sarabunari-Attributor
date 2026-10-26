@@ -2,6 +2,8 @@
 
 Inspector attributes for Unity 6: nested groups with columns, buttons where you declare them, and a few field helpers.
 
+**[Manual with examples →](https://kataruna.github.io/Sarabunari-Attributor/)**
+
 ## Install
 
 Package Manager → **+** → **Install package from git URL** →
