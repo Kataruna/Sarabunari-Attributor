@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.Serialization;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEditor.UIElements;
@@ -18,7 +17,7 @@ namespace Sarabunari.Attributor.Editor
         const BindingFlags All = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
         static readonly HashSet<string> Warned = new HashSet<string>();
         static readonly Dictionary<(Type, string), Func<object, bool>> Conditions = new Dictionary<(Type, string), Func<object, bool>>();
-        static readonly Dictionary<Type, object> DefaultInstances = new Dictionary<Type, object>();
+        static readonly Dictionary<Type, Dictionary<FieldInfo, object>> DefaultValues = new Dictionary<Type, Dictionary<FieldInfo, object>>();
 
         public static VisualElement CreateButton(SerializedObject so, MethodInfo method, ButtonAttribute attr)
         {
@@ -66,11 +65,114 @@ namespace Sarabunari.Attributor.Editor
             }
         }
 
+        static string FormatValue(object val) =>
+            (val is Object uo ? (uo != null ? uo.ToString() : "null") : val?.ToString()) ?? "null";
+
         public static VisualElement CreateShow(SerializedObject so, FieldInfo field)
         {
             SyncScriptDefault(so, field);
             var target = so.targetObject;
-            var display = new TextField(ObjectNames.NicifyVariableName(field.Name)) { name = field.Name, isReadOnly = true };
+            var label = ObjectNames.NicifyVariableName(field.Name);
+
+            if (typeof(System.Collections.IList).IsAssignableFrom(field.FieldType))
+            {
+                var elemType = field.FieldType.IsArray
+                    ? field.FieldType.GetElementType()
+                    : field.FieldType.IsGenericType ? field.FieldType.GetGenericArguments()[0] : typeof(object);
+
+                var foldout = new Foldout { name = field.Name, text = label, value = true };
+                foldout.AddToClassList("attributor-show-list");
+
+                var toggle = foldout.Q<Toggle>(className: Foldout.toggleUssClassName);
+                var countField = new IntegerField { name = "size", isReadOnly = true, style = { width = 48 } };
+                countField.SetEnabled(false);
+                if (toggle != null)
+                {
+                    var row = new VisualElement { style = { flexDirection = FlexDirection.Row, alignItems = Align.Center } };
+                    foldout.hierarchy.Insert(0, row);
+                    toggle.style.flexGrow = 1;
+                    row.Add(toggle);
+                    row.Add(countField);
+                }
+
+                var lastList = CloneIfCollection(field.GetValue(target), field.FieldType);
+                void RefreshList()
+                {
+                    var val = field.GetValue(target);
+                    if (!ValueEquals(val, lastList))
+                    {
+                        lastList = CloneIfCollection(val, field.FieldType);
+                        so.Update();
+                    }
+                    var list = val as System.Collections.IList;
+                    var count = list?.Count ?? 0;
+                    if (countField.value != count) countField.SetValueWithoutNotify(count);
+
+                    while (foldout.childCount > count)
+                        foldout.RemoveAt(foldout.childCount - 1);
+                    while (foldout.childCount < count)
+                    {
+                        var idx = foldout.childCount;
+                        if (elemType == typeof(bool))
+                        {
+                            var itemToggle = new Toggle($"Element {idx}") { name = $"Element {idx}" };
+                            itemToggle.AddToClassList(BaseField<bool>.alignedFieldUssClassName);
+                            itemToggle.SetEnabled(false);
+                            foldout.Add(itemToggle);
+                        }
+                        else
+                        {
+                            var itemText = new TextField($"Element {idx}") { name = $"Element {idx}", isReadOnly = true };
+                            itemText.AddToClassList(BaseField<string>.alignedFieldUssClassName);
+                            itemText.SetEnabled(false);
+                            foldout.Add(itemText);
+                        }
+                    }
+
+                    for (var i = 0; i < count; i++)
+                    {
+                        var item = list[i];
+                        if (elemType == typeof(bool) && foldout[i] is Toggle t)
+                        {
+                            var b = item is bool flag && flag;
+                            if (t.value != b) t.SetValueWithoutNotify(b);
+                        }
+                        else if (foldout[i] is TextField tf)
+                        {
+                            var text = FormatValue(item);
+                            if (tf.value != text) tf.SetValueWithoutNotify(text);
+                        }
+                    }
+                }
+
+                RefreshList();
+                foldout.schedule.Execute(RefreshList).Every(100);
+                return foldout;
+            }
+
+            if (field.FieldType == typeof(bool))
+            {
+                var toggle = new Toggle(label) { name = field.Name };
+                toggle.AddToClassList(BaseField<bool>.alignedFieldUssClassName);
+                toggle.SetEnabled(false);
+                var lastBool = field.GetValue(target);
+                void RefreshBool()
+                {
+                    var val = field.GetValue(target);
+                    if (!Equals(val, lastBool))
+                    {
+                        lastBool = val;
+                        so.Update();
+                    }
+                    var b = val is bool flag && flag;
+                    if (toggle.value != b) toggle.SetValueWithoutNotify(b);
+                }
+                RefreshBool();
+                toggle.schedule.Execute(RefreshBool).Every(100);
+                return toggle;
+            }
+
+            var display = new TextField(label) { name = field.Name, isReadOnly = true };
             display.AddToClassList(BaseField<string>.alignedFieldUssClassName);
             display.SetEnabled(false);
             var last = field.GetValue(target);
@@ -82,7 +184,7 @@ namespace Sarabunari.Attributor.Editor
                     last = val;
                     so.Update();
                 }
-                var text = (val is Object uo ? (uo != null ? uo.ToString() : "null") : val?.ToString()) ?? "null";
+                var text = FormatValue(val);
                 if (display.value != text) display.SetValueWithoutNotify(text);
             }
             Refresh();
@@ -90,25 +192,170 @@ namespace Sarabunari.Attributor.Editor
             return display;
         }
 
+        static bool IsObjectOrObjectCollection(Type t)
+        {
+            if (typeof(Object).IsAssignableFrom(t)) return true;
+            if (t.IsArray) return typeof(Object).IsAssignableFrom(t.GetElementType());
+            if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>))
+                return typeof(Object).IsAssignableFrom(t.GetGenericArguments()[0]);
+            return false;
+        }
+
+        static Type ChildComponentType(FieldInfo field)
+        {
+            var t = field?.FieldType;
+            if (t == null) return null;
+            Type elem = null;
+            if (t.IsArray && t.GetArrayRank() == 1) elem = t.GetElementType();
+            else if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>)) elem = t.GetGenericArguments()[0];
+            return elem != null && (typeof(Component).IsAssignableFrom(elem) || elem.IsInterface) ? elem : null;
+        }
+
+        public static VisualElement CreateGetChild(SerializedObject so, FieldInfo field, SerializedProperty property, GetChildAttribute attr)
+        {
+            var type = ChildComponentType(field);
+            if (!property.isArray || type == null || !(so.targetObject is Component))
+                return new HelpBox("GetChild works on List or array of Component fields", HelpBoxMessageType.Warning) { name = field.Name };
+
+            var root = new VisualElement { name = field.Name };
+            var row = new VisualElement { style = { flexDirection = FlexDirection.Row } };
+            var propField = new PropertyField(property) { style = { flexGrow = 1 } };
+            var error = new Label($"No child has {type.Name} component")
+            {
+                style =
+                {
+                    color = new Color(0.95f, 0.3f, 0.3f),
+                    display = DisplayStyle.None,
+                }
+            };
+            error.AddToClassList("attributor-get-child-error");
+
+            var button = new Button(() =>
+            {
+                var owner = (Component)so.targetObject;
+                var found = new List<Component>();
+                if (attr.Recursive)
+                {
+                    foreach (var c in owner.GetComponentsInChildren(type, attr.IncludeInactive))
+                        if (c.gameObject != owner.gameObject) found.Add(c);
+                }
+                else
+                {
+                    var tr = owner.transform;
+                    for (var i = 0; i < tr.childCount; i++)
+                    {
+                        var child = tr.GetChild(i);
+                        if (!attr.IncludeInactive && !child.gameObject.activeInHierarchy) continue;
+                        found.AddRange(child.GetComponents(type));
+                    }
+                }
+
+                so.Update();
+                if (found.Count == 0)
+                {
+                    property.ClearArray();
+                    so.ApplyModifiedProperties();
+                    error.style.display = DisplayStyle.Flex;
+                    Debug.LogWarning($"Attributor: no child of {owner.name} has {type.Name} component", owner);
+                    return;
+                }
+
+                error.style.display = DisplayStyle.None;
+                property.arraySize = found.Count;
+                for (var i = 0; i < found.Count; i++)
+                    property.GetArrayElementAtIndex(i).objectReferenceValue = found[i];
+                so.ApplyModifiedProperties();
+            })
+            {
+                name = "get-child",
+                text = "Get Child",
+                style = { alignSelf = Align.FlexStart },
+            };
+            button.AddToClassList("attributor-get-child");
+
+            propField.RegisterValueChangeCallback(_ =>
+            {
+                if (property.arraySize > 0)
+                    error.style.display = DisplayStyle.None;
+            });
+
+            row.Add(propField);
+            row.Add(button);
+            root.Add(row);
+            root.Add(error);
+            return root;
+        }
+
+        static bool ValueEquals(object a, object b)
+        {
+            if (ReferenceEquals(a, b)) return true;
+            if (a is System.Collections.IList la && b is System.Collections.IList lb)
+            {
+                if (la.Count != lb.Count) return false;
+                for (var i = 0; i < la.Count; i++)
+                    if (!Equals(la[i], lb[i])) return false;
+                return true;
+            }
+            return Equals(a, b);
+        }
+
+        static object CloneIfCollection(object value, Type fieldType)
+        {
+            if (value is Array arr)
+            {
+                var copy = Array.CreateInstance(fieldType.GetElementType(), arr.Length);
+                Array.Copy(arr, copy, arr.Length);
+                return copy;
+            }
+            if (value is System.Collections.IList list && fieldType.IsGenericType)
+            {
+                var copy = (System.Collections.IList)Activator.CreateInstance(fieldType);
+                foreach (var item in list) copy.Add(item);
+                return copy;
+            }
+            return value;
+        }
+
         static void SyncScriptDefault(SerializedObject so, FieldInfo field)
         {
-            if (Application.isPlaying || typeof(Object).IsAssignableFrom(field.FieldType)) return;
+            if (Application.isPlaying || IsObjectOrObjectCollection(field.FieldType)) return;
             var type = so.targetObject.GetType();
-            if (!DefaultInstances.TryGetValue(type, out var sample))
+            if (!DefaultValues.TryGetValue(type, out var defaults))
             {
-                sample = FormatterServices.GetUninitializedObject(type);
-                var ctor = type.GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
-                try { ctor?.Invoke(sample, null); }
-                catch { /* Field initializers run before base/body; ignore Unity API calls inside user ctor. */ }
-                DefaultInstances[type] = sample;
+                defaults = new Dictionary<FieldInfo, object>();
+                Object tempOwner = null;
+                Object sample = null;
+                try
+                {
+                    if (typeof(MonoBehaviour).IsAssignableFrom(type))
+                    {
+                        var go = new GameObject { hideFlags = HideFlags.HideAndDontSave };
+                        go.SetActive(false);
+                        tempOwner = go;
+                        sample = go.AddComponent(type);
+                    }
+                    else if (typeof(ScriptableObject).IsAssignableFrom(type))
+                    {
+                        sample = tempOwner = ScriptableObject.CreateInstance(type);
+                        sample.hideFlags = HideFlags.HideAndDontSave;
+                    }
+                    if (sample != null)
+                        for (var t = type; t != null && t != typeof(object); t = t.BaseType)
+                            foreach (var f in t.GetFields(All))
+                                defaults[f] = CloneIfCollection(f.GetValue(sample), f.FieldType);
+                }
+                finally
+                {
+                    if (tempOwner != null) Object.DestroyImmediate(tempOwner);
+                }
+                DefaultValues[type] = defaults;
             }
-            var scriptValue = field.GetValue(sample);
-            if (scriptValue == null) return;
+            if (!defaults.TryGetValue(field, out var scriptValue) || scriptValue == null) return;
             var changed = false;
             foreach (var target in so.targetObjects)
             {
-                if (Equals(field.GetValue(target), scriptValue)) continue;
-                field.SetValue(target, scriptValue);
+                if (ValueEquals(field.GetValue(target), scriptValue)) continue;
+                field.SetValue(target, CloneIfCollection(scriptValue, field.FieldType));
                 EditorUtility.SetDirty(target);
                 changed = true;
             }
@@ -152,12 +399,12 @@ namespace Sarabunari.Attributor.Editor
                 SyncScriptDefault(so, field);
                 element.SetEnabled(false);
                 var target = so.targetObject;
-                var last = field.GetValue(target);
+                var last = CloneIfCollection(field.GetValue(target), field.FieldType);
                 element.schedule.Execute(() =>
                 {
                     var val = field.GetValue(target);
-                    if (Equals(val, last)) return;
-                    last = val;
+                    if (ValueEquals(val, last)) return;
+                    last = CloneIfCollection(val, field.FieldType);
                     so.Update();
                 }).Every(100);
             }

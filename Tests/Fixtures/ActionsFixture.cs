@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Sarabunari.Attributor.Tests
@@ -13,7 +14,12 @@ namespace Sarabunari.Attributor.Tests
         [Locked] public int locked;
         [ReadOnly] public int readOnlyField = 12;
         [Show] private int hiddenSecret = 77;
+        [Show] private bool hiddenFlag = true;
+        [Show] private int[] hiddenArray = { 10, 20 };
+        [Show] private List<string> hiddenList = new List<string> { "alpha", "beta" };
         public void SetSecret(int value) => hiddenSecret = value;
+        public void SetHiddenFlag(bool value) => hiddenFlag = value;
+        public void AddToHiddenList(string item) => hiddenList.Add(item);
 
         [Button] public void IncrementCounter() => counter++;
         [Button("Go")] void Go() { }

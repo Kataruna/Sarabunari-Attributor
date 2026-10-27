@@ -35,6 +35,7 @@ using Sarabunari.Attributor;
 | `MinMaxSlider` | `[MinMaxSlider(0, 10)] public Vector2 range;` | Two-handle slider plus number boxes, `x` = min, `y` = max. |
 | `Required` | `[Required("Assign the canvas")] public CanvasGroup canvas;` | Error box under the field while it is empty. |
 | `SelfAssign` | `[SelfAssign] public Rigidbody rb;` | Inline `Self` button that assigns `GetComponent` from the same `GameObject`. |
+| `GetChild` | `[GetChild] public List<Collider> hits;` | Inline `Get Child` button that populates a list/array with matching components from child `GameObject`s. |
 
 Stack levels to mix collapsible and open boxes — attributes nest left to right:
 
@@ -51,6 +52,6 @@ Gives a collapsible **Border** with two 2×2 boxes, then `[Spawn] [Reset] [Clear
 
 ## Notes
 
-- `ReadOnly`, `EnableIf`, `DisableIf`, `OnChange`, `Group`, `Fold` and `Button` work on members of a `MonoBehaviour` or `ScriptableObject`, not inside nested `[Serializable]` classes. `Line`, `SceneName`, `Expandable`, `MinMaxSlider`, `Required` and `SelfAssign` work anywhere.
+- `ReadOnly`, `EnableIf`, `DisableIf`, `OnChange`, `GetChild`, `Group`, `Fold` and `Button` work on members of a `MonoBehaviour` or `ScriptableObject`, not inside nested `[Serializable]` classes. `Line`, `SceneName`, `Expandable`, `MinMaxSlider`, `Required` and `SelfAssign` work anywhere.
 - Scripts that use none of these attributes get Unity's normal inspector.
 - Not compatible with NaughtyAttributes installed in the same project (both replace the inspector) — see [MIGRATION.md](MIGRATION.md) to switch.

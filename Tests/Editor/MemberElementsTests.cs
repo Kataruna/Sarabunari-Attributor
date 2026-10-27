@@ -128,11 +128,29 @@ namespace Sarabunari.Attributor.Tests
             var editor = UnityEditor.Editor.CreateEditor(a1);
             try
             {
-                var field = editor.CreateInspectorGUI().Q<TextField>("hiddenSecret");
+                var root = editor.CreateInspectorGUI();
+                var field = root.Q<TextField>("hiddenSecret");
                 Assert.IsNotNull(field);
                 Assert.AreEqual("77", field.value);
                 Assert.IsTrue(field.isReadOnly);
                 Assert.IsFalse(field.enabledSelf);
+
+                var toggle = root.Q<Toggle>("hiddenFlag");
+                Assert.IsNotNull(toggle);
+                Assert.IsTrue(toggle.value);
+                Assert.IsFalse(toggle.enabledSelf);
+
+                var arrayFoldout = root.Q<Foldout>("hiddenArray");
+                Assert.IsNotNull(arrayFoldout);
+                Assert.AreEqual(2, arrayFoldout.Q<IntegerField>("size").value);
+                Assert.AreEqual("10", arrayFoldout.Q<TextField>("Element 0").value);
+                Assert.AreEqual("20", arrayFoldout.Q<TextField>("Element 1").value);
+
+                var listFoldout = root.Q<Foldout>("hiddenList");
+                Assert.IsNotNull(listFoldout);
+                Assert.AreEqual(2, listFoldout.Q<IntegerField>("size").value);
+                Assert.AreEqual("alpha", listFoldout.Q<TextField>("Element 0").value);
+                Assert.AreEqual("beta", listFoldout.Q<TextField>("Element 1").value);
             }
             finally { Object.DestroyImmediate(editor); }
         }

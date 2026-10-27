@@ -68,4 +68,18 @@ namespace Sarabunari.Attributor
 
     /// <summary>Component field adds a button to assign the component from the same GameObject.</summary>
     public class SelfAssignAttribute : PropertyAttribute { }
+
+    /// <summary>List or array of Components adds a button to populate from child GameObjects.</summary>
+    [AttributeUsage(AttributeTargets.Field)]
+    public class GetChildAttribute : Attribute
+    {
+        public bool Recursive { get; }
+        public bool IncludeInactive { get; }
+
+        public GetChildAttribute(bool recursive = true, bool includeInactive = true)
+        {
+            Recursive = recursive;
+            IncludeInactive = includeInactive;
+        }
+    }
 }

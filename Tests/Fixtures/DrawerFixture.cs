@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Sarabunari.Attributor.Tests
@@ -9,5 +10,6 @@ namespace Sarabunari.Attributor.Tests
         [Required("Canvas missing")] public CanvasGroup canvas;
         [SelfAssign] public BoxCollider box;
         [Expandable] public SelfRefAsset config;
+        [GetChild] public List<SphereCollider> childSpheres = new List<SphereCollider>();
     }
 }

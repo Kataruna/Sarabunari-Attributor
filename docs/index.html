@@ -85,14 +85,14 @@ ul.notes { padding-left: 20px; } ul.notes li { margin-bottom: 6px; }
     <a href="#install">Install</a><a href="#group">Group</a><a href="#row">Group (row)</a><a href="#fold">Fold</a><a href="#nesting">Nesting</a>
     <a href="#button">Button</a><a href="#show">Show</a><a href="#readonly">ReadOnly</a><a href="#line">Line</a>
     <a href="#enableif">EnableIf / DisableIf</a><a href="#onchange">OnChange</a><a href="#expandable">Expandable</a>
-    <a href="#scenename">SceneName</a><a href="#minmax">MinMaxSlider</a><a href="#required">Required</a><a href="#selfassign">SelfAssign</a><a href="#notes">Notes</a>
+    <a href="#scenename">SceneName</a><a href="#minmax">MinMaxSlider</a><a href="#required">Required</a><a href="#selfassign">SelfAssign</a><a href="#getchild">GetChild</a><a href="#notes">Notes</a>
   </nav>
 </header>
 
 <h2 id="install">Install</h2>
 <p>Package Manager → <b>+</b> → <b>Install package from git URL</b>, then paste:</p>
 <pre><code>https://github.com/Kataruna/Sarabunari-Attributor.git</code></pre>
-<p style="margin-top:12px">Add <code>#v0.3.0</code> to the end to pin a version. Then in your scripts:</p>
+<p style="margin-top:12px">Add <code>#v0.4.0</code> to the end to pin a version. Then in your scripts:</p>
 <pre><code><span class="k">using</span> Sarabunari.Attributor;</code></pre>
 
 <h2>Layout</h2>
@@ -328,9 +328,21 @@ ul.notes { padding-left: 20px; } ul.notes li { margin-bottom: 6px; }
   </div>
 </section>
 
+<section class="attr" id="getchild">
+  <h3>[GetChild] · [GetChild(recursive, includeInactive)]</h3>
+  <p>On a <code>List&lt;T&gt;</code> or <code>T[]</code> of components: adds a <b>Get Child</b> button that populates the list or array with matching components from child <code>GameObject</code>s (excluding the parent itself). Shows a red error label and logs a warning if no child has that component.</p>
+  <div class="example">
+    <div><div class="cap">Code</div><pre><code>[<span class="t">GetChild</span>]
+<span class="k">public</span> <span class="t">List</span>&lt;<span class="t">Collider</span>&gt; hitboxes;</code></pre></div>
+    <div><div class="cap">Inspector</div><div class="insp">
+      <div class="r"><span class="l">▸ Hitboxes</span><span class="f" style="max-width:48px;margin-left:auto">2</span><span class="btn" style="margin:0">Get Child</span></div>
+    </div></div>
+  </div>
+</section>
+
 <h2 id="notes">Notes</h2>
 <ul class="notes">
-  <li><code>Locked</code>, <code>EnableIf</code>, <code>DisableIf</code>, <code>OnChange</code>, <code>Group</code>, <code>Fold</code>, <code>Button</code> and <code>Show</code> work on members of a <code>MonoBehaviour</code> or <code>ScriptableObject</code>, not inside nested <code>[Serializable]</code> classes. <code>Line</code>, <code>SceneName</code>, <code>Expandable</code>, <code>MinMaxSlider</code>, <code>Required</code> and <code>SelfAssign</code> work anywhere.</li>
+  <li><code>ReadOnly</code>, <code>EnableIf</code>, <code>DisableIf</code>, <code>OnChange</code>, <code>GetChild</code>, <code>Group</code>, <code>Fold</code>, <code>Button</code> and <code>Show</code> work on members of a <code>MonoBehaviour</code> or <code>ScriptableObject</code>, not inside nested <code>[Serializable]</code> classes. <code>Line</code>, <code>SceneName</code>, <code>Expandable</code>, <code>MinMaxSlider</code>, <code>Required</code> and <code>SelfAssign</code> work anywhere.</li>
   <li>Scripts that use none of these attributes get Unity's normal inspector.</li>
   <li>Can't be installed alongside NaughtyAttributes, since both replace the inspector. To switch, see the <a href="https://github.com/Kataruna/Sarabunari-Attributor/blob/main/MIGRATION.md">migration guide</a>.</li>
 </ul>

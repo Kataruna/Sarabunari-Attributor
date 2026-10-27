@@ -240,17 +240,74 @@ namespace Sarabunari.Attributor.Tests
 
             var readOnlyUi = window.rootVisualElement.Q<PropertyField>("readOnlyField").Q<IntegerField>();
             var showUi = window.rootVisualElement.Q<TextField>("hiddenSecret");
+            var showBoolUi = window.rootVisualElement.Q<Toggle>("hiddenFlag");
             Assert.AreEqual(12, readOnlyUi.value);
             Assert.AreEqual("77", showUi.value);
+            Assert.IsTrue(showBoolUi.value);
 
-            // Code modifies both fields directly while the inspector is open.
+            // Code modifies fields directly while the inspector is open.
             a.readOnlyField = 45;
             a.SetSecret(123);
+            a.SetHiddenFlag(false);
+            a.AddToHiddenList("gamma");
             var until = EditorApplication.timeSinceStartup + 0.3;
             while (EditorApplication.timeSinceStartup < until) yield return null;
 
             Assert.AreEqual(45, readOnlyUi.value);
             Assert.AreEqual("123", showUi.value);
+            Assert.IsFalse(showBoolUi.value);
+            var listFoldout = window.rootVisualElement.Q<Foldout>("hiddenList");
+            Assert.AreEqual(3, listFoldout.Q<IntegerField>("size").value);
+            Assert.AreEqual("gamma", listFoldout.Q<TextField>("Element 2").value);
+        }
+
+        [UnityTest]
+        public IEnumerator GetChild_AssignsMatchingChildComponentsOnly_AndShowsRedErrorWhenNone()
+        {
+            var c = Component<DrawerFixture>();
+            // Parent itself has a SphereCollider, which must be excluded (children only).
+            c.gameObject.AddComponent<SphereCollider>();
+            yield return Show(c);
+
+            var button = window.rootVisualElement.Q<Button>(className: "attributor-get-child");
+            var error = window.rootVisualElement.Q<Label>(className: "attributor-get-child-error");
+            Assert.IsNotNull(button);
+            Assert.AreEqual(DisplayStyle.None, error.resolvedStyle.display);
+
+            // No children with SphereCollider yet: warns, shows red error, leaves list empty.
+            LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("SphereCollider"));
+            using (var e = NavigationSubmitEvent.GetPooled())
+            {
+                e.target = button;
+                button.SendEvent(e);
+            }
+            for (var i = 0; i < 3; i++) yield return null;
+            Assert.AreEqual(0, c.childSpheres.Count);
+            Assert.AreEqual(DisplayStyle.Flex, error.resolvedStyle.display);
+            StringAssert.Contains("SphereCollider", error.text);
+
+            // Add 3 children: two with SphereCollider, one without (only BoxCollider).
+            var child1 = new GameObject("c1");
+            child1.transform.SetParent(c.transform);
+            var s1 = child1.AddComponent<SphereCollider>();
+
+            var child2 = new GameObject("c2");
+            child2.transform.SetParent(c.transform);
+            child2.AddComponent<BoxCollider>();
+
+            var child3 = new GameObject("c3");
+            child3.transform.SetParent(c.transform);
+            var s2 = child3.AddComponent<SphereCollider>();
+
+            using (var e = NavigationSubmitEvent.GetPooled())
+            {
+                e.target = button;
+                button.SendEvent(e);
+            }
+            for (var i = 0; i < 3; i++) yield return null;
+            editor.serializedObject.Update();
+            CollectionAssert.AreEqual(new[] { s1, s2 }, c.childSpheres);
+            Assert.AreEqual(DisplayStyle.None, error.resolvedStyle.display);
         }
     }
 }

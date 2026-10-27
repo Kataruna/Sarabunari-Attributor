@@ -54,7 +54,10 @@ namespace Sarabunari.Attributor.Editor
             if (info.IsDefined(typeof(HideInInspector), true)) return null;
             var property = so.FindProperty(m.Name);
             if (property == null) return null;
-            var field = new PropertyField(property) { name = m.Name };
+            var getChild = info.GetCustomAttribute<GetChildAttribute>();
+            var field = getChild != null
+                ? MemberElements.CreateGetChild(so, info, property, getChild)
+                : new PropertyField(property) { name = m.Name };
             MemberElements.ApplyModifiers(field, so, info);
             return field;
         }
