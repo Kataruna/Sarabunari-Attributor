@@ -83,16 +83,16 @@ ul.notes { padding-left: 20px; } ul.notes li { margin-bottom: 6px; }
   <p>Inspector attributes for Unity 6: nested groups with columns, buttons where you declare them, and a few field helpers.</p>
   <nav>
     <a href="#install">Install</a><a href="#group">Group</a><a href="#row">Group (row)</a><a href="#fold">Fold</a><a href="#nesting">Nesting</a>
-    <a href="#button">Button</a><a href="#show">Show</a><a href="#locked">Locked</a><a href="#line">Line</a>
-    <a href="#enableif">EnableIf / DisableIf</a><a href="#onchange">OnChange</a><a href="#expand">Expand</a>
-    <a href="#scenename">SceneName</a><a href="#minmax">MinMaxSlider</a><a href="#required">Required</a><a href="#notes">Notes</a>
+    <a href="#button">Button</a><a href="#show">Show</a><a href="#readonly">ReadOnly</a><a href="#line">Line</a>
+    <a href="#enableif">EnableIf / DisableIf</a><a href="#onchange">OnChange</a><a href="#expandable">Expandable</a>
+    <a href="#scenename">SceneName</a><a href="#minmax">MinMaxSlider</a><a href="#required">Required</a><a href="#selfassign">SelfAssign</a><a href="#notes">Notes</a>
   </nav>
 </header>
 
 <h2 id="install">Install</h2>
 <p>Package Manager → <b>+</b> → <b>Install package from git URL</b>, then paste:</p>
 <pre><code>https://github.com/Kataruna/Sarabunari-Attributor.git</code></pre>
-<p style="margin-top:12px">Add <code>#v0.2.1</code> to the end to pin a version. Then in your scripts:</p>
+<p style="margin-top:12px">Add <code>#v0.3.0</code> to the end to pin a version. Then in your scripts:</p>
 <pre><code><span class="k">using</span> Sarabunari.Attributor;</code></pre>
 
 <h2>Layout</h2>
@@ -191,10 +191,10 @@ ul.notes { padding-left: 20px; } ul.notes li { margin-bottom: 6px; }
 
 <section class="attr" id="show">
   <h3>[Show]</h3>
-  <p>Shows the value of a field Unity doesn't save, read-only, refreshed while the inspector is open.</p>
+  <p>Makes a private or non-serialized field readable in the inspector, not editable, refreshed while the inspector is open.</p>
   <div class="example">
-    <div><div class="cap">Code</div><pre><code>[<span class="t">Show</span>] <span class="k">float</span> currentSpeed;
-[<span class="t">Show</span>] <span class="t">GameObject</span> target;</code></pre></div>
+    <div><div class="cap">Code</div><pre><code>[<span class="t">Show</span>] <span class="k">private float</span> currentSpeed;
+[<span class="t">Show</span>] <span class="k">private</span> <span class="t">GameObject</span> target;</code></pre></div>
     <div><div class="cap">Inspector</div><div class="insp">
       <div class="r off"><span class="l">Current Speed</span><span class="f">3.27</span></div>
       <div class="r off"><span class="l">Target</span><span class="f">null</span></div>
@@ -204,11 +204,11 @@ ul.notes { padding-left: 20px; } ul.notes li { margin-bottom: 6px; }
 
 <h2>Field helpers</h2>
 
-<section class="attr" id="locked">
-  <h3>[Locked]</h3>
-  <p>Shows the field greyed out so it can't be edited in the inspector.</p>
+<section class="attr" id="readonly">
+  <h3>[ReadOnly]</h3>
+  <p>Locks a public or serialized field so it still shows in the inspector but can't be edited (<code>[Locked]</code> is also available as an alias).</p>
   <div class="example">
-    <div><div class="cap">Code</div><pre><code>[<span class="t">Locked</span>] <span class="k">public string</span> id = <span class="s">"enemy-07"</span>;</code></pre></div>
+    <div><div class="cap">Code</div><pre><code>[<span class="t">ReadOnly</span>] <span class="k">public string</span> id = <span class="s">"enemy-07"</span>;</code></pre></div>
     <div><div class="cap">Inspector</div><div class="insp">
       <div class="r off"><span class="l">Id</span><span class="f">enemy-07</span></div>
     </div></div>
@@ -266,16 +266,16 @@ ul.notes { padding-left: 20px; } ul.notes li { margin-bottom: 6px; }
   </div>
 </section>
 
-<section class="attr" id="expand">
-  <h3>[Expand]</h3>
-  <p>For an object reference: shows the referenced asset's fields in a foldout right under the field, so you can edit them without leaving this inspector.</p>
+<section class="attr" id="expandable">
+  <h3>[Expandable]</h3>
+  <p>For a <code>ScriptableObject</code> reference: adds an inline expand arrow on the field row so you can inspect and edit the asset's fields right where it is declared.</p>
   <div class="example">
-    <div><div class="cap">Code</div><pre><code>[<span class="t">Expand</span>] <span class="k">public</span> <span class="t">WeaponConfig</span> weapon;</code></pre></div>
+    <div><div class="cap">Code</div><pre><code>[<span class="t">Expandable</span>] <span class="k">public</span> <span class="t">WeaponConfig</span> weapon;</code></pre></div>
     <div><div class="cap">Inspector</div><div class="insp">
-      <div class="r"><span class="l">Weapon</span><span class="f obj">Rifle (WeaponConfig)</span></div>
-      <div class="fold"><div class="ti">Rifle</div><div class="in">
+      <div class="r"><span class="l">▾ Weapon</span><span class="f obj">Rifle (WeaponConfig)</span></div>
+      <div class="box" style="margin-left:14px">
         <div class="r"><span class="l">Damage</span><span class="f">12</span></div>
-        <div class="r"><span class="l">Fire Rate</span><span class="f">8</span></div></div></div>
+        <div class="r"><span class="l">Fire Rate</span><span class="f">8</span></div></div>
     </div></div>
   </div>
 </section>
@@ -316,9 +316,21 @@ ul.notes { padding-left: 20px; } ul.notes li { margin-bottom: 6px; }
   </div>
 </section>
 
+<section class="attr" id="selfassign">
+  <h3>[SelfAssign]</h3>
+  <p>On a component reference: adds an inline <b>Self</b> button that calls <code>GetComponent</code> on the same <code>GameObject</code> and assigns it. Shows a red error label and logs a warning if the component is missing.</p>
+  <div class="example">
+    <div><div class="cap">Code</div><pre><code>[<span class="t">SelfAssign</span>]
+<span class="k">public</span> <span class="t">Rigidbody</span> rb;</code></pre></div>
+    <div><div class="cap">Inspector</div><div class="insp">
+      <div class="r"><span class="l">Rb</span><span class="f obj">None (Rigidbody)</span><span class="btn" style="margin:0">Self</span></div>
+    </div></div>
+  </div>
+</section>
+
 <h2 id="notes">Notes</h2>
 <ul class="notes">
-  <li><code>Locked</code>, <code>EnableIf</code>, <code>DisableIf</code>, <code>OnChange</code>, <code>Group</code>, <code>Fold</code>, <code>Button</code> and <code>Show</code> work on members of a <code>MonoBehaviour</code> or <code>ScriptableObject</code>, not inside nested <code>[Serializable]</code> classes. <code>Line</code>, <code>SceneName</code>, <code>Expand</code>, <code>MinMaxSlider</code> and <code>Required</code> work anywhere.</li>
+  <li><code>Locked</code>, <code>EnableIf</code>, <code>DisableIf</code>, <code>OnChange</code>, <code>Group</code>, <code>Fold</code>, <code>Button</code> and <code>Show</code> work on members of a <code>MonoBehaviour</code> or <code>ScriptableObject</code>, not inside nested <code>[Serializable]</code> classes. <code>Line</code>, <code>SceneName</code>, <code>Expandable</code>, <code>MinMaxSlider</code>, <code>Required</code> and <code>SelfAssign</code> work anywhere.</li>
   <li>Scripts that use none of these attributes get Unity's normal inspector.</li>
   <li>Can't be installed alongside NaughtyAttributes, since both replace the inspector. To switch, see the <a href="https://github.com/Kataruna/Sarabunari-Attributor/blob/main/MIGRATION.md">migration guide</a>.</li>
 </ul>

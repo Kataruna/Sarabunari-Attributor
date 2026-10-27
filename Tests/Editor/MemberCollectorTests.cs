@@ -40,6 +40,12 @@ namespace Sarabunari.Attributor.Tests
         }
 
         [Test]
+        public void CharLiteralsVerbatimStringsAndExpressionBodies_DontMisplaceButtons()
+        {
+            CollectionAssert.AreEqual(new[] { "a", "open", "path", "B", "c" }, Names(typeof(TrickyFixture)));
+        }
+
+        [Test]
         public void SourceMissing_ButtonsAtEndOfClass_NoThrow()
         {
             CollectionAssert.AreEqual(new[] { "f", "Btn" }, Names(typeof(NotMatchingName)));

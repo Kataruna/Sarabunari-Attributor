@@ -1,10 +1,13 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
+using Object = UnityEngine.Object;
 
 namespace Sarabunari.Attributor.Editor
 {
@@ -108,36 +111,44 @@ namespace Sarabunari.Attributor.Editor
         }
     }
 
-    [CustomPropertyDrawer(typeof(ExpandAttribute))]
-    public class ExpandDrawer : PropertyDrawer
+    [CustomPropertyDrawer(typeof(ExpandableAttribute), true)]
+    public class ExpandableDrawer : PropertyDrawer
     {
         const int MaxDepth = 3;
 
         public override VisualElement CreatePropertyGUI(SerializedProperty property)
         {
-            var root = new VisualElement();
-            var field = new PropertyField(property);
-            root.Add(field);
-            if (property.propertyType != SerializedPropertyType.ObjectReference) return root;
+            if (property.propertyType != SerializedPropertyType.ObjectReference)
+                return new HelpBox("Expandable works on ScriptableObject fields", HelpBoxMessageType.Warning);
 
             var owner = property.serializedObject.targetObject;
-            var foldout = new Foldout { value = false };
+            var foldout = new Foldout { value = false, text = "" };
             foldout.AddToClassList("attributor-expand");
-            root.Add(foldout);
+
+            var toggle = foldout.Q<Toggle>(className: Foldout.toggleUssClassName);
+            toggle.style.flexGrow = 0;
+            toggle.style.marginRight = 2;
+
+            var row = new VisualElement { style = { flexDirection = FlexDirection.Row, alignItems = Align.Center } };
+            foldout.hierarchy.Insert(0, row);
+            row.Add(toggle);
+
+            var field = new PropertyField(property) { style = { flexGrow = 1 } };
+            row.Add(field);
 
             void Refresh(Object obj)
             {
+                var so = obj as ScriptableObject;
                 foldout.Clear();
-                foldout.userData = obj;
-                foldout.text = obj == null ? "" : obj.name == "" ? obj.GetType().Name : obj.name;
-                foldout.style.display = obj == null ? DisplayStyle.None : DisplayStyle.Flex;
+                foldout.userData = so;
+                toggle.style.display = so == null ? DisplayStyle.None : DisplayStyle.Flex;
                 foldout.value = false;
             }
 
             // Content is built only when opened, and never for an object already open above.
             foldout.RegisterValueChangedCallback(e =>
             {
-                if (e.target != foldout || !e.newValue || foldout.childCount > 0 || !(foldout.userData is Object obj)) return;
+                if (e.target != foldout || !e.newValue || foldout.childCount > 0 || !(foldout.userData is ScriptableObject obj)) return;
                 var ancestors = new List<Object> { owner };
                 for (var p = foldout.parent; p != null; p = p.parent)
                     if (p.ClassListContains("attributor-expand") && p.userData is Object o) ancestors.Add(o);
@@ -147,11 +158,83 @@ namespace Sarabunari.Attributor.Editor
                     skip.AddToClassList("attributor-expand-skip");
                     foldout.Add(skip);
                 }
-                else foldout.Add(new InspectorElement(obj));
+                else
+                {
+                    var inspector = new InspectorElement(obj);
+                    inspector.AddToClassList("attributor-box");
+                    foldout.Add(inspector);
+                }
             });
 
             Refresh(property.objectReferenceValue);
             field.RegisterValueChangeCallback(e => Refresh(e.changedProperty.objectReferenceValue));
+            return foldout;
+        }
+    }
+
+    [CustomPropertyDrawer(typeof(SelfAssignAttribute))]
+    public class SelfAssignDrawer : PropertyDrawer
+    {
+        static Type ComponentType(FieldInfo field)
+        {
+            var t = field?.FieldType;
+            if (t == null) return null;
+            if (t.IsArray) t = t.GetElementType();
+            else if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>)) t = t.GetGenericArguments()[0];
+            return typeof(Component).IsAssignableFrom(t) || t.IsInterface ? t : null;
+        }
+
+        public override VisualElement CreatePropertyGUI(SerializedProperty property)
+        {
+            var type = ComponentType(fieldInfo);
+            if (property.propertyType != SerializedPropertyType.ObjectReference || type == null || !(property.serializedObject.targetObject is Component))
+                return new HelpBox("SelfAssign works on Component fields", HelpBoxMessageType.Warning);
+
+            var root = new VisualElement();
+            var row = new VisualElement { style = { flexDirection = FlexDirection.Row } };
+            var field = new PropertyField(property) { style = { flexGrow = 1 } };
+            var error = new Label($"This object doesn't have {type.Name} component")
+            {
+                style =
+                {
+                    color = new Color(0.95f, 0.3f, 0.3f),
+                    display = DisplayStyle.None,
+                }
+            };
+            error.AddToClassList("attributor-self-assign-error");
+
+            var button = new Button(() =>
+            {
+                var so = property.serializedObject;
+                var owner = (Component)so.targetObject;
+                var found = owner.GetComponent(type);
+                if (found == null)
+                {
+                    error.style.display = DisplayStyle.Flex;
+                    Debug.LogWarning($"Attributor: {owner.name} doesn't have {type.Name} component", owner);
+                    return;
+                }
+                error.style.display = DisplayStyle.None;
+                so.Update();
+                property.objectReferenceValue = found;
+                so.ApplyModifiedProperties();
+            })
+            {
+                name = "self-assign",
+                text = "Self",
+            };
+            button.AddToClassList("attributor-self-assign");
+
+            field.RegisterValueChangeCallback(e =>
+            {
+                if (e.changedProperty.objectReferenceValue != null)
+                    error.style.display = DisplayStyle.None;
+            });
+
+            row.Add(field);
+            row.Add(button);
+            root.Add(row);
+            root.Add(error);
             return root;
         }
     }

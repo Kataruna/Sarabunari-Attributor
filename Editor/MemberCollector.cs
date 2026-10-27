@@ -33,7 +33,7 @@ namespace Sarabunari.Attributor.Editor
         }
 
         static bool IsOurs(object a) =>
-            a is LevelAttribute || a is ButtonAttribute || a is ShowAttribute || a is LockedAttribute ||
+            a is LevelAttribute || a is ButtonAttribute || a is ShowAttribute || a is ReadOnlyAttribute ||
             a is EnableIfAttribute || a is DisableIfAttribute || a is OnChangeAttribute;
 
         static IEnumerable<Type> Hierarchy(Type type)
@@ -115,12 +115,13 @@ namespace Sarabunari.Attributor.Editor
             return null;
         }
 
-        /// <summary>Finds field declaration lines: matches at the class body's brace depth only, so uses inside methods are skipped.</summary>
-        // ponytail: regex + brace counting, a Roslyn parse if it ever misplaces members
+        /// <summary>Finds field declaration lines: matches at the class body's depth only, so uses inside methods and attribute arguments are skipped.</summary>
+        // ponytail: regex + bracket counting, a Roslyn parse if it ever misplaces members (e.g. strings nested in $"{...}")
         sealed class DeclarationFinder
         {
             readonly string source;
-            readonly int[] depth; // brace depth before each char, comments and strings ignored
+            readonly int[] depth; // { ( [ depth before each char, comments and literals ignored
+            readonly List<int> lineStarts = new List<int> { 0 };
             readonly int classDepth = -1;
 
             public DeclarationFinder(string source, string className)
@@ -128,28 +129,68 @@ namespace Sarabunari.Attributor.Editor
                 this.source = source;
                 depth = new int[source.Length + 1];
                 var d = 0;
-                for (var i = 0; i < source.Length; i++)
+                for (var i = 0; i < source.Length;)
                 {
+                    var end = LiteralEnd(source, i);
+                    if (end > i)
+                    {
+                        while (i < end) depth[i++] = d;
+                        continue;
+                    }
                     depth[i] = d;
-                    var c = source[i];
-                    if (c == '/' && i + 1 < source.Length && source[i + 1] == '/')
-                    {
-                        while (i < source.Length && source[i] != '\n') depth[i++] = d;
-                        if (i < source.Length) depth[i] = d;
-                    }
-                    else if (c == '"')
-                    {
-                        depth[i++] = d;
-                        while (i < source.Length && source[i] != '"') { if (source[i] == '\\') depth[i++] = d; if (i < source.Length) depth[i++] = d; }
-                        if (i < source.Length) depth[i] = d;
-                    }
-                    else if (c == '{') d++;
-                    else if (c == '}') d--;
+                    var c = source[i++];
+                    if (c == '{' || c == '(' || c == '[') d++;
+                    else if (c == '}' || c == ')' || c == ']') d--;
                 }
                 depth[source.Length] = d;
 
+                for (var i = 0; i < source.Length; i++)
+                    if (source[i] == '\n') lineStarts.Add(i + 1);
+
                 var cls = Regex.Match(source, @"\b(class|struct)\s+" + Regex.Escape(className) + @"\b");
                 if (cls.Success) classDepth = depth[cls.Index] + 1;
+            }
+
+            /// <summary>Index just past the comment, string or char literal starting at i, or i if none starts there.</summary>
+            static int LiteralEnd(string s, int i)
+            {
+                var n = s.Length;
+                if (s[i] == '/' && i + 1 < n && s[i + 1] == '/')
+                {
+                    var e = s.IndexOf('\n', i);
+                    return e < 0 ? n : e;
+                }
+                if (s[i] == '/' && i + 1 < n && s[i + 1] == '*')
+                {
+                    var e = s.IndexOf("*/", i + 2, StringComparison.Ordinal);
+                    return e < 0 ? n : e + 2;
+                }
+                var j = i;
+                var verbatim = false;
+                while (j < n && (s[j] == '@' || s[j] == '$')) verbatim |= s[j++] == '@';
+                if (j >= n || !(s[j] == '"' || s[j] == '\'' && j == i)) return i;
+                var quote = s[j];
+                for (j++; j < n; j++)
+                {
+                    if (s[j] == '\\' && !verbatim) j++;
+                    else if (s[j] == quote)
+                    {
+                        if (verbatim && j + 1 < n && s[j + 1] == quote) j++; // "" inside @"..."
+                        else return j + 1;
+                    }
+                }
+                return n;
+            }
+
+            // A declared name follows a type (int x, List<T> x, int[] x, int? x) or a comma (int a, b), not an operator.
+            bool FollowsType(int index)
+            {
+                var k = index - 1;
+                while (k >= 0 && char.IsWhiteSpace(source[k])) k--;
+                if (k < 0) return false;
+                var c = source[k];
+                if (c == '>') return k == 0 || source[k - 1] != '='; // not "=> x;"
+                return char.IsLetterOrDigit(c) || c == '_' || c == ']' || c == '?' || c == ',' || c == ')' || c == '*';
             }
 
             /// <summary>1-based line of the declaration of name after afterLine, or 0.</summary>
@@ -158,11 +199,9 @@ namespace Sarabunari.Attributor.Editor
                 if (classDepth < 0) return 0;
                 foreach (Match m in Regex.Matches(source, @"\b" + Regex.Escape(name) + @"\b\s*[;,=]"))
                 {
-                    if (depth[m.Index] != classDepth) continue;
-                    var before = source.Substring(0, m.Index).TrimEnd();
-                    if (before.EndsWith("=>") || before.EndsWith(".")) continue;
-                    var line = 1;
-                    for (var i = 0; i < m.Index; i++) if (source[i] == '\n') line++;
+                    if (depth[m.Index] != classDepth || !FollowsType(m.Index)) continue;
+                    var k = lineStarts.BinarySearch(m.Index);
+                    var line = k >= 0 ? k + 1 : ~k;
                     if (line >= afterLine) return line;
                 }
                 return 0;

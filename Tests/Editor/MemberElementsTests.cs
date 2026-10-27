@@ -54,6 +54,16 @@ namespace Sarabunari.Attributor.Tests
         }
 
         [Test]
+        public void Invoke_ThrowingMethod_LogsAndRunsOtherTargets()
+        {
+            LogAssert.Expect(LogType.Exception, new System.Text.RegularExpressions.Regex("boom"));
+            LogAssert.Expect(LogType.Exception, new System.Text.RegularExpressions.Regex("boom"));
+            MemberElements.Invoke(Method("Boom"), new Object[] { a1, a2 });
+            Assert.AreEqual(9, a1.counter);
+            Assert.AreEqual(9, a2.counter);
+        }
+
+        [Test]
         public void RequiredParameterMethod_ButtonDisabled()
         {
             var b = ButtonFor(a1, "Needs");
@@ -105,7 +115,41 @@ namespace Sarabunari.Attributor.Tests
             var editor = UnityEditor.Editor.CreateEditor(a1);
             try
             {
-                Assert.IsFalse(editor.CreateInspectorGUI().Q<PropertyField>("locked").enabledSelf);
+                var root = editor.CreateInspectorGUI();
+                Assert.IsFalse(root.Q<PropertyField>("locked").enabledSelf);
+                Assert.IsFalse(root.Q<PropertyField>("readOnlyField").enabledSelf);
+            }
+            finally { Object.DestroyImmediate(editor); }
+        }
+
+        [Test]
+        public void Show_DisplaysPrivateFieldReadOnly()
+        {
+            var editor = UnityEditor.Editor.CreateEditor(a1);
+            try
+            {
+                var field = editor.CreateInspectorGUI().Q<TextField>("hiddenSecret");
+                Assert.IsNotNull(field);
+                Assert.AreEqual("77", field.value);
+                Assert.IsTrue(field.isReadOnly);
+                Assert.IsFalse(field.enabledSelf);
+            }
+            finally { Object.DestroyImmediate(editor); }
+        }
+
+        [Test]
+        public void ReadOnlyAndShow_SyncStaleValueToScriptDefaultOnInspectorBuild()
+        {
+            // Simulate stale scene serialization that differs from the C# script initializers (12 and 77).
+            a1.readOnlyField = 999;
+            a1.SetSecret(888);
+            var editor = UnityEditor.Editor.CreateEditor(a1);
+            try
+            {
+                var root = editor.CreateInspectorGUI();
+                Assert.AreEqual(12, a1.readOnlyField);
+                Assert.AreEqual(12, editor.serializedObject.FindProperty("readOnlyField").intValue);
+                Assert.AreEqual("77", root.Q<TextField>("hiddenSecret").value);
             }
             finally { Object.DestroyImmediate(editor); }
         }

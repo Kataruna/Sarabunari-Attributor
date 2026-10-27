@@ -4,6 +4,7 @@ namespace Sarabunari.Attributor.Tests
 {
     public class SelfRefAsset : ScriptableObject
     {
-        [Expand] public SelfRefAsset other;
+        public int power = 10;
+        [Expandable] public SelfRefAsset other;
     }
 }

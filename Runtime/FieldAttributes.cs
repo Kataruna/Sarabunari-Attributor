@@ -3,9 +3,13 @@ using UnityEngine;
 
 namespace Sarabunari.Attributor
 {
-    /// <summary>Field is shown greyed out.</summary>
+    /// <summary>Public or serialized field is shown in the inspector but locked from editing.</summary>
     [AttributeUsage(AttributeTargets.Field)]
-    public class LockedAttribute : Attribute { }
+    public class ReadOnlyAttribute : Attribute { }
+
+    /// <summary>Alias for <see cref="ReadOnlyAttribute"/>.</summary>
+    [AttributeUsage(AttributeTargets.Field)]
+    public class LockedAttribute : ReadOnlyAttribute { }
 
     /// <summary>Field is editable only when the bool field, property or method is true.</summary>
     [AttributeUsage(AttributeTargets.Field)]
@@ -37,8 +41,11 @@ namespace Sarabunari.Attributor
     /// <summary>String field picks a scene from Build Settings.</summary>
     public class SceneNameAttribute : PropertyAttribute { }
 
-    /// <summary>Object reference shows the referenced object's fields inline.</summary>
-    public class ExpandAttribute : PropertyAttribute { }
+    /// <summary>ScriptableObject reference shows its fields inline with an expand arrow.</summary>
+    public class ExpandableAttribute : PropertyAttribute { }
+
+    /// <summary>Alias for <see cref="ExpandableAttribute"/>.</summary>
+    public class ExpandAttribute : ExpandableAttribute { }
 
     /// <summary>Vector2 field picks a range with a two-handle slider (x = min, y = max).</summary>
     public class MinMaxSliderAttribute : PropertyAttribute
@@ -58,4 +65,7 @@ namespace Sarabunari.Attributor
         public string Message { get; }
         public RequiredAttribute(string message = null) => Message = message;
     }
+
+    /// <summary>Component field adds a button to assign the component from the same GameObject.</summary>
+    public class SelfAssignAttribute : PropertyAttribute { }
 }

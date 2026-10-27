@@ -28,11 +28,11 @@ grep -rnE 'ShowIf|HideIf|ReorderableList|Dropdown|InfoBox|ValidateInput|ShowNati
 | `[MinMaxSlider(a, b)]` | same | `Vector2` fields only. |
 | `[Required]`, `[Required("Message")]` | same | Object reference fields only. Shows an error box instead of NaughtyAttributes' warning. |
 | `[ShowNonSerializedField]` | `[Show]` | |
-| `[ReadOnly]` | `[Locked]` | Only in files that used NaughtyAttributes. `Unity.Collections.ReadOnly` (Jobs) stays as is. |
+| `[ReadOnly]` | same | `[Locked]` is also supported as an alias if a file uses `Unity.Collections.ReadOnly` (Jobs). |
 | `[HorizontalLine]` | `[Line]` | Color/thickness arguments aren't supported. |
 | `[EnableIf("x")]`, `[DisableIf("x")]` | same | One condition only. |
 | `[OnValueChanged("M")]` | `[OnChange("M")]` | |
-| `[Expandable]` | `[Expand]` | |
+| `[Expandable]` | same | `ScriptableObject` fields. |
 | `[Scene]` | `[SceneName]` | `string` fields only. |
 
 Run these commands from `Assets/Scripts`. They only touch files that contain `using NaughtyAttributes`, so Jobs `[ReadOnly]` elsewhere stays safe. Commit first so you can diff the result.
@@ -46,7 +46,6 @@ find . -name '*.cs' -print0 | xargs -0 grep -l 'using NaughtyAttributes' | tr '\
   s/\bReadOnly\b/Locked/g;
   s/\bHorizontalLine\b/Line/g;
   s/\bOnValueChanged\(/OnChange(/g;
-  s/\bExpandable\b/Expand/g;
   s/\bScene\]/SceneName]/g;
 '
 ```
@@ -91,5 +90,5 @@ The field names stay the same, so the references you assigned in scenes and pref
 
 - **Order follows the script.** Groups and buttons appear where they're declared. Inspectors that used to have all their buttons at the bottom will now have them spread through the fields.
 - **Fold state** is remembered until Unity closes, per script and group.
-- **`Locked`, `EnableIf`, `DisableIf`, `OnChange`, `Group`, `Fold`, `Button`** work on a script's own members, not inside nested `[Serializable]` classes. `Line`, `SceneName`, `Expand`, `MinMaxSlider` and `Required` work anywhere.
+- **`Locked`, `EnableIf`, `DisableIf`, `OnChange`, `Group`, `Fold`, `Button`** work on a script's own members, not inside nested `[Serializable]` classes. `Line`, `SceneName`, `Expandable`, `MinMaxSlider` and `Required` work anywhere.
 - **Button methods may have optional parameters.** Required parameters show a disabled button.

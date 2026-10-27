@@ -139,6 +139,40 @@ namespace Sarabunari.Attributor.Tests
         }
 
         [UnityTest]
+        public IEnumerator Expandable_InlineArrow_AndInlineEdit_ModifiesScriptableObject()
+        {
+            var c = Component<DrawerFixture>();
+            yield return Show(c);
+
+            var foldout = window.rootVisualElement.Q<Foldout>(className: "attributor-expand");
+            var toggle = foldout.Q<Toggle>(className: Foldout.toggleUssClassName);
+            Assert.AreEqual(DisplayStyle.None, toggle.resolvedStyle.display);
+
+            var asset = ScriptableObject.CreateInstance<SelfRefAsset>();
+            created.Add(asset);
+            editor.serializedObject.FindProperty("config").objectReferenceValue = asset;
+            editor.serializedObject.ApplyModifiedProperties();
+            var until = EditorApplication.timeSinceStartup + 0.3;
+            while (EditorApplication.timeSinceStartup < until) yield return null;
+
+            // Arrow is now visible and inline on the left of the field row.
+            Assert.AreEqual(DisplayStyle.Flex, toggle.resolvedStyle.display);
+            var objField = foldout.Q<ObjectField>();
+            Assert.Less(toggle.worldBound.x, objField.worldBound.x);
+            Assert.AreEqual(toggle.worldBound.center.y, objField.worldBound.center.y, 4f);
+
+            // Expanding shows the ScriptableObject's fields and edits apply directly to the asset.
+            foldout.value = true;
+            for (var i = 0; i < 5; i++) yield return null;
+            var powerField = foldout.Q<IntegerField>();
+            Assert.IsNotNull(powerField);
+            Assert.AreEqual(10, powerField.value);
+            powerField.value = 42;
+            for (var i = 0; i < 3; i++) yield return null;
+            Assert.AreEqual(42, asset.power);
+        }
+
+        [UnityTest]
         public IEnumerator Expand_SelfReference_DoesNotRecurse()
         {
             var a = ScriptableObject.CreateInstance<SelfRefAsset>();
@@ -159,6 +193,64 @@ namespace Sarabunari.Attributor.Tests
 
             Assert.LessOrEqual(window.rootVisualElement.Query<InspectorElement>().ToList().Count, 3);
             Assert.IsNotNull(window.rootVisualElement.Q(className: "attributor-expand-skip"));
+        }
+
+        [UnityTest]
+        public IEnumerator SelfAssign_AssignsComponentWhenPresent_AndShowsRedErrorWithWarningWhenMissing()
+        {
+            var c = Component<DrawerFixture>();
+            yield return Show(c);
+
+            var button = window.rootVisualElement.Q<Button>(className: "attributor-self-assign");
+            var error = window.rootVisualElement.Q<Label>(className: "attributor-self-assign-error");
+            Assert.IsNotNull(button);
+            Assert.AreEqual(DisplayStyle.None, error.resolvedStyle.display);
+
+            // Missing component: warns, shows red error text, and leaves field null.
+            LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("BoxCollider"));
+            using (var e = NavigationSubmitEvent.GetPooled())
+            {
+                e.target = button;
+                button.SendEvent(e);
+            }
+            for (var i = 0; i < 3; i++) yield return null;
+            editor.serializedObject.Update();
+            Assert.IsNull(c.box);
+            Assert.AreEqual(DisplayStyle.Flex, error.resolvedStyle.display);
+            StringAssert.Contains("BoxCollider", error.text);
+
+            // Add component and click again: assigns component and hides red error text.
+            var added = c.gameObject.AddComponent<BoxCollider>();
+            using (var e = NavigationSubmitEvent.GetPooled())
+            {
+                e.target = button;
+                button.SendEvent(e);
+            }
+            for (var i = 0; i < 3; i++) yield return null;
+            editor.serializedObject.Update();
+            Assert.AreSame(added, c.box);
+            Assert.AreEqual(DisplayStyle.None, error.resolvedStyle.display);
+        }
+
+        [UnityTest]
+        public IEnumerator ReadOnlyAndShow_UpdateWhenCodeChangesValueWhileInspectorOpen()
+        {
+            var a = Component<ActionsFixture>();
+            yield return Show(a);
+
+            var readOnlyUi = window.rootVisualElement.Q<PropertyField>("readOnlyField").Q<IntegerField>();
+            var showUi = window.rootVisualElement.Q<TextField>("hiddenSecret");
+            Assert.AreEqual(12, readOnlyUi.value);
+            Assert.AreEqual("77", showUi.value);
+
+            // Code modifies both fields directly while the inspector is open.
+            a.readOnlyField = 45;
+            a.SetSecret(123);
+            var until = EditorApplication.timeSinceStartup + 0.3;
+            while (EditorApplication.timeSinceStartup < until) yield return null;
+
+            Assert.AreEqual(45, readOnlyUi.value);
+            Assert.AreEqual("123", showUi.value);
         }
     }
 }
