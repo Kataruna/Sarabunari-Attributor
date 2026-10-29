@@ -38,6 +38,9 @@ namespace Sarabunari.Attributor
     /// <summary>Separator line above the field.</summary>
     public class LineAttribute : PropertyAttribute { }
 
+    /// <summary>Alias for <see cref="LineAttribute"/>.</summary>
+    public class SeparatorAttribute : LineAttribute { }
+
     /// <summary>String field picks a scene from Build Settings.</summary>
     public class SceneNameAttribute : PropertyAttribute { }
 
@@ -94,7 +97,7 @@ namespace Sarabunari.Attributor
         public GalleryAttribute(int columns = 4) => Columns = Math.Max(1, columns);
     }
 
-    /// <summary>List or array of object references shows a drop area above it; dropped objects are appended.</summary>
+    /// <summary>List or array of object references shows a drop area under its name; dropped objects are appended.</summary>
     [AttributeUsage(AttributeTargets.Field)]
     public class DropZoneAttribute : Attribute { }
 }

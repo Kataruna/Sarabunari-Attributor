@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace Sarabunari.Attributor
@@ -36,22 +37,35 @@ namespace Sarabunari.Attributor
         public override bool Foldable => true;
     }
 
-    /// <summary>When a button can be clicked.</summary>
-    public enum EButtonEnableMode { Always, Editor, Playmode }
+    /// <summary>When a button can be clicked. 0 is left undefined on purpose, see <see cref="ButtonAttribute"/>.</summary>
+    public enum EButtonEnableMode { Always = 1, Editor, Playmode }
 
-    /// <summary>Draws a method as a button where it is declared.</summary>
-    [AttributeUsage(AttributeTargets.Method)]
+    /// <summary>
+    /// Draws a method as a button where it is declared. Arguments after the label are passed to the method:
+    /// [Button("Add 1 Hour", 1), Button("Add 2 Hours", 2)] void AddHours(int amount).
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
     public class ButtonAttribute : Attribute
     {
         public string Label { get; }
         public EButtonEnableMode Mode { get; }
-        public int Line { get; }
+        public object[] Args { get; }
 
-        public ButtonAttribute(string label = null, EButtonEnableMode mode = EButtonEnableMode.Always, [CallerLineNumber] int line = 0)
+        public ButtonAttribute(string label = null, EButtonEnableMode mode = EButtonEnableMode.Always) : this(label, mode, new object[0]) { }
+
+        public ButtonAttribute(string label, params object[] args) : this(label, EButtonEnableMode.Always, args) { }
+
+        public ButtonAttribute(string label, EButtonEnableMode mode, params object[] args)
         {
             Label = label;
+            // C# binds a literal 0 to the mode parameter ([Button("Reset", 0)]): it was meant as an argument.
+            if (mode == 0)
+            {
+                mode = EButtonEnableMode.Always;
+                args = new object[] { 0 }.Concat(args ?? new object[] { null }).ToArray();
+            }
             Mode = mode;
-            Line = line;
+            Args = args ?? new object[] { null }; // [Button("Clear", null)]
         }
     }
 

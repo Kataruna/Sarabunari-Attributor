@@ -68,7 +68,55 @@ namespace Sarabunari.Attributor.Tests
         {
             var b = ButtonFor(a1, "Needs");
             Assert.IsFalse(b.enabledSelf);
-            StringAssert.Contains("parameters", b.tooltip);
+            StringAssert.Contains("no default", b.tooltip);
+        }
+
+        static void Click(Object target, MemberEntry entry)
+        {
+            var m = (MethodInfo)entry.Info;
+            var b = (Button)MemberElements.CreateButton(new SerializedObject(target), m, entry.Button);
+            Assert.IsTrue(b.enabledSelf, b.tooltip);
+            MemberElements.Invoke(m, new[] { target }, MemberElements.ButtonArgs(m, entry.Button.Args, out _));
+        }
+
+        [Test]
+        public void ButtonArguments_OneButtonPerAttribute_InOrder_PassingTheirValues()
+        {
+            var entries = MemberCollector.Collect(typeof(ActionsFixture)).Where(e => e.Name == "AddHours").ToList();
+            CollectionAssert.AreEqual(new[] { "Add 1 Hour", "Add 2 Hours" }, entries.Select(e => e.Button.Label));
+            Click(a1, entries[0]);
+            Assert.AreEqual(1, a1.counter);
+            Click(a1, entries[1]);
+            Assert.AreEqual(3, a1.counter);
+        }
+
+        [Test]
+        public void ButtonArguments_LiteralZero_IsAnArgumentNotAMode()
+        {
+            var all = MemberCollector.Collect(typeof(ActionsFixture));
+            a1.last = 7;
+            Click(a1, all.Single(e => e.Name == "SetLast"));
+            Assert.AreEqual(0, a1.last);
+            Click(a1, all.Single(e => e.Name == "SetPair"));
+            Assert.AreEqual(5, a1.last);
+        }
+
+        [Test]
+        public void ButtonArguments_ConvertedToParameterType()
+        {
+            Click(a1, MemberCollector.Collect(typeof(ActionsFixture)).Single(e => e.Name == "SetSpeed"));
+            Assert.AreEqual(1f, a1.speed);
+        }
+
+        [Test]
+        public void ButtonArguments_WrongTypeOrCount_ButtonDisabledWithReason()
+        {
+            var bad = ButtonFor(a1, "TakesInt");
+            Assert.IsFalse(bad.enabledSelf);
+            StringAssert.Contains("text", bad.tooltip);
+            var many = ButtonFor(a1, "TakesOne");
+            Assert.IsFalse(many.enabledSelf);
+            StringAssert.Contains("passes 2", many.tooltip);
         }
 
         [Test]

@@ -73,12 +73,12 @@ namespace Sarabunari.Attributor.Editor
                 fields.Add(new MemberEntry(f.Name, show != null ? MemberKind.Show : MemberKind.Field, f, line, levels));
             }
 
+            // One entry per [Button]; stable sort keeps a method's buttons in declaration order.
             var buttons = type.GetMethods(Declared)
-                .Select(m => (method: m, attr: m.GetCustomAttribute<ButtonAttribute>()))
-                .Where(x => x.attr != null)
-                .OrderBy(x => x.attr.Line).ThenBy(x => x.method.MetadataToken)
-                .Select(x => new MemberEntry(x.method.Name, MemberKind.Button, x.method, x.attr.Line,
-                    x.method.GetCustomAttributes<LevelAttribute>(false).ToList()))
+                .SelectMany(m => m.GetCustomAttributes<ButtonAttribute>(false).Select(attr => (method: m, attr)))
+                .Select(x => new MemberEntry(x.method.Name, MemberKind.Button, x.method, finder?.FindMethodLine(x.method.Name) ?? 0,
+                    x.method.GetCustomAttributes<LevelAttribute>(false).ToList(), x.attr))
+                .OrderBy(b => b.Line).ThenBy(b => b.Info.MetadataToken)
                 .ToList();
 
             // Without the script text, field positions are unknown: buttons go after the fields.
@@ -191,6 +191,19 @@ namespace Sarabunari.Attributor.Editor
                 var c = source[k];
                 if (c == '>') return k == 0 || source[k - 1] != '='; // not "=> x;"
                 return char.IsLetterOrDigit(c) || c == '_' || c == ']' || c == '?' || c == ',' || c == ')' || c == '*';
+            }
+
+            /// <summary>1-based line of the first method declaration named name, or 0.</summary>
+            public int FindMethodLine(string name)
+            {
+                if (classDepth < 0) return 0;
+                foreach (Match m in Regex.Matches(source, @"\b" + Regex.Escape(name) + @"\s*(<[^<>;{}]*>)?\s*\("))
+                    if (depth[m.Index] == classDepth && FollowsType(m.Index))
+                    {
+                        var k = lineStarts.BinarySearch(m.Index);
+                        return k >= 0 ? k + 1 : ~k;
+                    }
+                return 0;
             }
 
             /// <summary>1-based line of the declaration of name after afterLine, or 0.</summary>

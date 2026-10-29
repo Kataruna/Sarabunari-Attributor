@@ -22,15 +22,16 @@ namespace Sarabunari.Attributor.Editor
         public static VisualElement CreateButton(SerializedObject so, MethodInfo method, ButtonAttribute attr)
         {
             var targets = so.targetObjects;
-            var button = new Button(() => Invoke(method, targets))
+            var args = ButtonArgs(method, attr.Args, out var error);
+            var button = new Button(() => Invoke(method, targets, args))
             {
                 name = method.Name,
                 text = attr.Label ?? ObjectNames.NicifyVariableName(method.Name),
             };
-            if (method.GetParameters().Any(p => !p.HasDefaultValue))
+            if (error != null)
             {
                 button.SetEnabled(false);
-                button.tooltip = "Attributor: Button methods need no parameters or only optional ones";
+                button.tooltip = "Attributor: " + error;
             }
             else if (attr.Mode != EButtonEnableMode.Always)
             {
@@ -47,12 +48,57 @@ namespace Sarabunari.Attributor.Editor
             return button;
         }
 
-        public static void Invoke(MethodInfo method, Object[] targets)
+        /// <summary>The [Button] arguments converted to the method's parameter types, then defaults for the rest; null and an error if they don't fit.</summary>
+        public static object[] ButtonArgs(MethodInfo method, object[] given, out string error)
         {
-            // A struct default like "= default" reports DefaultValue null; Invoke turns null into default(T).
-            var args = method.GetParameters()
-                .Select(p => p.DefaultValue is DBNull || p.DefaultValue == Missing.Value ? null : p.DefaultValue)
-                .ToArray();
+            error = null;
+            var parameters = method.GetParameters();
+            if (given.Length > parameters.Length)
+            {
+                error = $"{method.Name} takes {parameters.Length} parameter(s) but the button passes {given.Length}";
+                return null;
+            }
+
+            var args = new object[parameters.Length];
+            for (var i = 0; i < parameters.Length; i++)
+            {
+                var p = parameters[i];
+                var type = p.ParameterType;
+                if (i >= given.Length)
+                {
+                    if (!p.HasDefaultValue)
+                    {
+                        error = $"{method.Name} needs a value for '{p.Name}' and has no default: pass it after the label, e.g. [Button(\"Label\", value)]";
+                        return null;
+                    }
+                    // A struct default like "= default" reports DefaultValue null; Invoke turns null into default(T).
+                    args[i] = p.DefaultValue is DBNull || p.DefaultValue == Missing.Value ? null : p.DefaultValue;
+                }
+                else if (given[i] == null ? !type.IsValueType || Nullable.GetUnderlyingType(type) != null : type.IsInstanceOfType(given[i]))
+                    args[i] = given[i];
+                else
+                {
+                    // Attribute constants come in as int, double, ... : convert like the C# compiler would (1 -> float, 2 -> enum).
+                    try
+                    {
+                        var target = Nullable.GetUnderlyingType(type) ?? type;
+                        args[i] = target.IsEnum ? Enum.ToObject(target, given[i]) : Convert.ChangeType(given[i], target);
+                    }
+                    catch (Exception e) when (e is InvalidCastException || e is FormatException || e is OverflowException || e is ArgumentException)
+                    {
+                        error = $"{method.Name}: can't pass {given[i]} ({given[i]?.GetType().Name ?? "null"}) to '{p.Name}' ({type.Name})";
+                        return null;
+                    }
+                }
+            }
+            return args;
+        }
+
+        public static void Invoke(MethodInfo method, Object[] targets) =>
+            Invoke(method, targets, ButtonArgs(method, new object[0], out _));
+
+        public static void Invoke(MethodInfo method, Object[] targets, object[] args)
+        {
             foreach (var target in targets)
             {
                 Undo.RecordObject(target, ObjectNames.NicifyVariableName(method.Name));
@@ -218,8 +264,8 @@ namespace Sarabunari.Attributor.Editor
                 return new HelpBox("GetChild works on List or array of Component fields", HelpBoxMessageType.Warning) { name = field.Name };
 
             var root = new VisualElement { name = field.Name };
-            var row = new VisualElement { style = { flexDirection = FlexDirection.Row } };
-            var propField = new PropertyField(property) { style = { flexGrow = 1 } };
+            root.AddToClassList("attributor-get-child-list");
+            var propField = new PropertyField(property);
             var error = new Label($"No child has {type.Name} component")
             {
                 style =
@@ -269,7 +315,6 @@ namespace Sarabunari.Attributor.Editor
             {
                 name = "get-child",
                 text = "Get Child",
-                style = { alignSelf = Align.FlexStart },
             };
             button.AddToClassList("attributor-get-child");
 
@@ -279,9 +324,9 @@ namespace Sarabunari.Attributor.Editor
                     error.style.display = DisplayStyle.None;
             });
 
-            row.Add(propField);
-            row.Add(button);
-            root.Add(row);
+            // Button sits in the list's header row (see Attributor.uss), so the elements keep the full width.
+            root.Add(propField);
+            root.Add(button);
             root.Add(error);
             return root;
         }
@@ -336,7 +381,7 @@ namespace Sarabunari.Attributor.Editor
             zone.AddToClassList("attributor-drop-zone");
             zone.RegisterCallback<DragUpdatedEvent>(_ =>
             {
-                var ok = DragAndDrop.objectReferences.Any(o => Accept(o, type) != null);
+                var ok = DragAndDrop.objectReferences.Any(o => Accept(o, type).Any());
                 DragAndDrop.visualMode = ok ? DragAndDropVisualMode.Copy : DragAndDropVisualMode.Rejected;
                 zone.EnableInClassList("attributor-drop-zone--hover", ok);
             });
@@ -347,18 +392,32 @@ namespace Sarabunari.Attributor.Editor
                 zone.RemoveFromClassList("attributor-drop-zone--hover");
                 AppendDropped(property, type, DragAndDrop.objectReferences);
             });
-            root.Add(zone);
             root.Add(field);
+            // The list's ListView is built after binding (and again on rebind): slot the zone under its name row each time.
+            root.RegisterCallback<GeometryChangedEvent>(_ =>
+            {
+                var header = root.Q<Foldout>(className: ListView.foldoutHeaderUssClassName);
+                if (header != null && zone.parent != header.contentContainer) header.Insert(0, zone);
+            });
             return root;
         }
 
-        /// <summary>The object itself if it fits the element type, else a matching component on a dropped GameObject.</summary>
-        static Object Accept(Object o, Type type)
+        /// <summary>
+        /// What a dropped object adds: itself if it fits the element type, else a matching component on a GameObject,
+        /// else matching sub-assets of its file (a sprite .png drags as its Texture2D; a sprite sheet adds every slice).
+        /// </summary>
+        static IEnumerable<Object> Accept(Object o, Type type)
         {
-            if (o == null) return null;
-            if (type.IsInstanceOfType(o)) return o;
-            if (o is GameObject go && (typeof(Component).IsAssignableFrom(type) || type.IsInterface)) return go.GetComponent(type);
-            return null;
+            if (o == null) return Enumerable.Empty<Object>();
+            if (type.IsInstanceOfType(o)) return new[] { o };
+            if (o is GameObject go && (typeof(Component).IsAssignableFrom(type) || type.IsInterface))
+            {
+                var c = go.GetComponent(type);
+                if (c != null) return new Object[] { c };
+            }
+            return AssetDatabase.Contains(o)
+                ? AssetDatabase.LoadAllAssetRepresentationsAtPath(AssetDatabase.GetAssetPath(o)).Where(type.IsInstanceOfType)
+                : Enumerable.Empty<Object>();
         }
 
         /// <summary>Appends the dropped objects that fit to the end of the list; returns how many were added.</summary>
@@ -367,10 +426,8 @@ namespace Sarabunari.Attributor.Editor
             var so = property.serializedObject;
             so.Update();
             var added = 0;
-            foreach (var o in dropped)
+            foreach (var item in dropped.SelectMany(o => Accept(o, type)))
             {
-                var item = Accept(o, type);
-                if (item == null) continue;
                 property.arraySize++;
                 property.GetArrayElementAtIndex(property.arraySize - 1).objectReferenceValue = item;
                 added++;

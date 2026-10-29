@@ -23,11 +23,12 @@ using Sarabunari.Attributor;
 | `Group` | `[Group("Border/Inner", 2)]` | Always-open titled box. `/` nests, the number sets columns. |
 | `Group` (bare) | `[Group(3)]` | Row with no box or title. Consecutive members share it. |
 | `Fold` | `[Fold("Events")]` | Same as `Group`, but collapsible. |
-| `Button` | `[Button]`, `[Button("Label")]` | Method button, drawn where it is declared. Optional parameters are allowed. |
+| `Button` | `[Button]`, `[Button("Label")]` | Method button, drawn where it is declared. Parameters need a default value or an argument. |
 | `Button` (mode) | `[Button("Fire", EButtonEnableMode.Playmode)]` | Clickable only in Play mode (`Playmode`) or only outside it (`Editor`). |
+| `Button` (arguments) | `[Button("Add 1 Hour", 1), Button("Add 2 Hours", 2)]` | Values after the label (or after the mode) are passed to the method. Several `Button`s on one method give one button each. |
 | `Show` | `[Show] private float speed;` | Makes a private / non-serialized field readable in the inspector, not editable. |
 | `ReadOnly` | `[ReadOnly] public int id;` | Locks a public / serialized field in the inspector while still showing it. |
-| `Line` | `[Line]` | Separator line above the field. |
+| `Line` / `Separator` | `[Line]` | Separator line above the field. `[Separator]` is an alias. |
 | `EnableIf` / `DisableIf` | `[EnableIf("useCamera")]` | Editable only when / greyed out when a bool field, property or method is true. |
 | `OnChange` | `[OnChange("Apply")]` | Calls a method after the field's value changes while its inspector is open — edits, Undo, and code writing the field in play mode. |
 | `Expandable` | `[Expandable] public MyConfig config;` | Inline arrow on a `ScriptableObject` field to expand and edit its fields right in the inspector. |
@@ -38,7 +39,7 @@ using Sarabunari.Attributor;
 | `GetChild` | `[GetChild] public List<Collider> hits;` | Inline `Get Child` button that populates a list/array with matching components from child `GameObject`s. |
 | `Preview` | `[Preview] public Sprite icon;` | Thumbnail of the assigned texture, sprite, prefab or other asset under the field. |
 | `Gallery` | `[Gallery(3)] public List<Sprite> icons;` | Thumbnail grid of a list/array of assets under the field. The number sets columns (default 4). |
-| `DropZone` | `[DropZone] public List<Sprite> icons;` | Drop area above a list/array; dropped objects are added to the end. A dropped `GameObject` adds its matching component. |
+| `DropZone` | `[DropZone] public List<Sprite> icons;` | Drop area under a list/array's name, above its elements; dropped objects are added to the end. A dropped `GameObject` adds its matching component. |
 
 Stack levels to mix collapsible and open boxes — attributes nest left to right:
 

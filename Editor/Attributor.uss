@@ -63,3 +63,17 @@
     border-color: rgb(58, 121, 187);
     background-color: rgba(58, 121, 187, 0.2);
 }
+
+/* GetChild: button in the list header's top-right corner, list size field moved left of it. */
+.attributor-get-child-list .attributor-get-child {
+    position: absolute;
+    top: 1px;
+    right: 0;
+    width: 66px;
+    height: 19px;
+    margin: 0;
+}
+
+.attributor-get-child-list .unity-list-view__size-field {
+    right: 70px;
+}

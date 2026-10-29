@@ -83,7 +83,7 @@ ul.notes { padding-left: 20px; } ul.notes li { margin-bottom: 6px; }
   <p>Inspector attributes for Unity 6: nested groups with columns, buttons where you declare them, and a few field helpers.</p>
   <nav>
     <a href="#install">Install</a><a href="#group">Group</a><a href="#row">Group (row)</a><a href="#fold">Fold</a><a href="#nesting">Nesting</a>
-    <a href="#button">Button</a><a href="#show">Show</a><a href="#readonly">ReadOnly</a><a href="#line">Line</a>
+    <a href="#button">Button</a><a href="#show">Show</a><a href="#readonly">ReadOnly</a><a href="#line">Line / Separator</a>
     <a href="#enableif">EnableIf / DisableIf</a><a href="#onchange">OnChange</a><a href="#expandable">Expandable</a>
     <a href="#scenename">SceneName</a><a href="#minmax">MinMaxSlider</a><a href="#required">Required</a><a href="#selfassign">SelfAssign</a><a href="#getchild">GetChild</a><a href="#preview">Preview</a><a href="#gallery">Gallery</a><a href="#dropzone">DropZone</a><a href="#notes">Notes</a>
   </nav>
@@ -92,7 +92,7 @@ ul.notes { padding-left: 20px; } ul.notes li { margin-bottom: 6px; }
 <h2 id="install">Install</h2>
 <p>Package Manager → <b>+</b> → <b>Install package from git URL</b>, then paste:</p>
 <pre><code>https://github.com/Kataruna/Sarabunari-Attributor.git</code></pre>
-<p style="margin-top:12px">Add <code>#v0.5.0</code> to the end to pin a version. Then in your scripts:</p>
+<p style="margin-top:12px">Add <code>#v0.6.0</code> to the end to pin a version. Then in your scripts:</p>
 <pre><code><span class="k">using</span> Sarabunari.Attributor;</code></pre>
 
 <h2>Layout</h2>
@@ -174,17 +174,22 @@ ul.notes { padding-left: 20px; } ul.notes li { margin-bottom: 6px; }
 <h2>Buttons and read-only values</h2>
 
 <section class="attr" id="button">
-  <h3>[Button] · [Button("Label", mode)]</h3>
-  <p>Draws a method as a button, in the place it's declared. The method can take only optional parameters. Clicking is recorded for Undo and marks the scene dirty. <code>EButtonEnableMode.Playmode</code> makes it clickable only in Play mode; <code>Editor</code> only outside it.</p>
+  <h3>[Button] · [Button("Label", mode)] · [Button("Label", args...)]</h3>
+  <p>Draws a method as a button, in the place it's declared. Values after the label are passed to the method's parameters, and stacking several <code>Button</code>s on one method gives one button each. Parameters left out need a default value; a value of the wrong type disables the button with the reason in its tooltip. Clicking is recorded for Undo and marks the scene dirty. <code>EButtonEnableMode.Playmode</code> makes it clickable only in Play mode; <code>Editor</code> only outside it.</p>
   <div class="example">
     <div><div class="cap">Code</div><pre><code>[<span class="t">Button</span>]
 <span class="k">void</span> Randomize() { <span class="c">/* ... */</span> }
 
 [<span class="t">Button</span>(<span class="s">"Fire!"</span>, <span class="t">EButtonEnableMode</span>.Playmode)]
-<span class="k">void</span> Fire(<span class="k">int</span> count = <span class="s">1</span>) { <span class="c">/* ... */</span> }</code></pre></div>
+<span class="k">void</span> Fire(<span class="k">int</span> count = <span class="s">1</span>) { <span class="c">/* ... */</span> }
+
+[<span class="t">Button</span>(<span class="s">"Add 1 Hour"</span>, <span class="s">1</span>), <span class="t">Button</span>(<span class="s">"Add 2 Hours"</span>, <span class="s">2</span>)]
+<span class="k">public void</span> AddHours(<span class="k">int</span> amount) { <span class="c">/* ... */</span> }</code></pre></div>
     <div><div class="cap">Inspector <span class="hint">(edit mode)</span></div><div class="insp">
       <div class="btn">Randomize</div>
       <div class="btn off">Fire!</div>
+      <div class="btn">Add 1 Hour</div>
+      <div class="btn">Add 2 Hours</div>
     </div></div>
   </div>
 </section>
@@ -216,8 +221,8 @@ ul.notes { padding-left: 20px; } ul.notes li { margin-bottom: 6px; }
 </section>
 
 <section class="attr" id="line">
-  <h3>[Line]</h3>
-  <p>A separator line above the field.</p>
+  <h3>[Line] · [Separator]</h3>
+  <p>A separator line above the field. <code>[Separator]</code> is an alias.</p>
   <div class="example">
     <div><div class="cap">Code</div><pre><code><span class="k">public int</span> lives = <span class="s">3</span>;
 [<span class="t">Line</span>]
@@ -371,13 +376,14 @@ ul.notes { padding-left: 20px; } ul.notes li { margin-bottom: 6px; }
 
 <section class="attr" id="dropzone">
   <h3>[DropZone]</h3>
-  <p>On a <code>List&lt;T&gt;</code> or <code>T[]</code> of object references: shows a drop area above the list. Objects dropped on it are added to the end. A dropped <code>GameObject</code> adds its matching component, and objects of the wrong type are skipped.</p>
+  <p>On a <code>List&lt;T&gt;</code> or <code>T[]</code> of object references: shows a drop area under the list's name, above its elements. Objects dropped on it are added to the end. A dropped <code>GameObject</code> adds its matching component, and objects of the wrong type are skipped.</p>
   <div class="example">
     <div><div class="cap">Code</div><pre><code>[<span class="t">DropZone</span>]
 <span class="k">public</span> <span class="t">List</span>&lt;<span class="t">Sprite</span>&gt; icons;</code></pre></div>
     <div><div class="cap">Inspector</div><div class="insp">
+      <div class="r"><span class="l">▾ Icons</span><span class="f" style="max-width:48px;margin-left:auto">3</span></div>
       <div class="r" style="justify-content:center;border:1px dashed #777;border-radius:3px;padding:10px;color:#aaa">Drop Sprite here</div>
-      <div class="r"><span class="l">▸ Icons</span><span class="f" style="max-width:48px;margin-left:auto">3</span></div>
+      <div class="r"><span class="l">Element 0</span><span class="f">◉ Coin (Sprite)</span></div>
     </div></div>
   </div>
 </section>

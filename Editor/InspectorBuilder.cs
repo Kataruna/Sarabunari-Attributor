@@ -48,7 +48,7 @@ namespace Sarabunari.Attributor.Editor
         public static VisualElement CreateMember(SerializedObject so, MemberEntry m)
         {
             if (m.Kind == MemberKind.Button)
-                return MemberElements.CreateButton(so, (MethodInfo)m.Info, m.Info.GetCustomAttribute<ButtonAttribute>());
+                return MemberElements.CreateButton(so, (MethodInfo)m.Info, m.Button);
             var info = (FieldInfo)m.Info;
             if (m.Kind == MemberKind.Show) return MemberElements.CreateShow(so, info);
             if (info.IsDefined(typeof(HideInInspector), true)) return null;

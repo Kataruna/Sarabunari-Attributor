@@ -12,9 +12,12 @@ namespace Sarabunari.Attributor.Editor
         public MemberInfo Info { get; }
         public int Line { get; }
         public IReadOnlyList<LevelAttribute> Levels { get; }
+        /// <summary>Which [Button] this entry draws: a method can have several.</summary>
+        public ButtonAttribute Button { get; }
 
-        public MemberEntry(string name, MemberKind kind, MemberInfo info, int line, IReadOnlyList<LevelAttribute> levels)
+        public MemberEntry(string name, MemberKind kind, MemberInfo info, int line, IReadOnlyList<LevelAttribute> levels, ButtonAttribute button = null)
         {
+            Button = button;
             Name = name;
             Kind = kind;
             Info = info;

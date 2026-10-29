@@ -103,11 +103,11 @@ namespace Sarabunari.Attributor.Tests
         }
 
         [UnityTest]
-        public IEnumerator Line_AndRange_BothApply()
+        public IEnumerator Line_AndRange_BothApply_AndSeparatorAliasDrawsLine()
         {
             yield return Show(Component<DrawerFixture>());
             Assert.IsNotNull(window.rootVisualElement.Q<Slider>());
-            Assert.IsNotNull(window.rootVisualElement.Q(className: "attributor-line"));
+            Assert.AreEqual(2, window.rootVisualElement.Query(className: "attributor-line").ToList().Count);
         }
 
         [UnityTest]
@@ -206,6 +206,13 @@ namespace Sarabunari.Attributor.Tests
             Assert.IsNotNull(button);
             Assert.AreEqual(DisplayStyle.None, error.resolvedStyle.display);
 
+            // Button lives in the header row: the list keeps the full width and the size field stays clear of it.
+            var root = window.rootVisualElement.Q("childSpheres");
+            Assert.AreEqual(root.layout.width, root.Q<ListView>().layout.width, 0.5f);
+            var size = root.Q(className: ListView.arraySizeFieldUssClassName);
+            Assert.LessOrEqual(size.worldBound.xMax, button.worldBound.xMin);
+            Assert.Less(button.worldBound.yMin, size.worldBound.yMax);
+
             // Missing component: warns, shows red error text, and leaves field null.
             LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("BoxCollider"));
             using (var e = NavigationSubmitEvent.GetPooled())
@@ -273,6 +280,13 @@ namespace Sarabunari.Attributor.Tests
             var error = window.rootVisualElement.Q<Label>(className: "attributor-get-child-error");
             Assert.IsNotNull(button);
             Assert.AreEqual(DisplayStyle.None, error.resolvedStyle.display);
+
+            // Button lives in the header row: the list keeps the full width and the size field stays clear of it.
+            var root = window.rootVisualElement.Q("childSpheres");
+            Assert.AreEqual(root.layout.width, root.Q<ListView>().layout.width, 0.5f);
+            var size = root.Q(className: ListView.arraySizeFieldUssClassName);
+            Assert.LessOrEqual(size.worldBound.xMax, button.worldBound.xMin);
+            Assert.Less(button.worldBound.yMin, size.worldBound.yMax);
 
             // No children with SphereCollider yet: warns, shows red error, leaves list empty.
             LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("SphereCollider"));
@@ -349,15 +363,18 @@ namespace Sarabunari.Attributor.Tests
         }
     
         [UnityTest]
-        public IEnumerator DropZone_ShownAboveList_AppendsOnlyMatchingDrops()
+        public IEnumerator DropZone_ShownUnderListName_AppendsOnlyMatchingDrops()
         {
             var c = Component<DrawerFixture>();
             var existing = c.gameObject.AddComponent<BoxCollider>();
             c.droppedBoxes = new[] { existing };
             yield return Show(c);
 
-            var root = window.rootVisualElement.Q("droppedBoxes");
-            Assert.AreEqual("drop-zone", root[0].name);
+            // Under the list's name row, above its elements.
+            var zone = window.rootVisualElement.Q("droppedBoxes").Q("drop-zone");
+            var header = zone.GetFirstAncestorOfType<Foldout>();
+            Assert.IsTrue(header.ClassListContains(ListView.foldoutHeaderUssClassName));
+            Assert.AreEqual(0, header.contentContainer.IndexOf(zone));
 
             var other = new GameObject("other");
             created.Add(other);
@@ -370,6 +387,32 @@ namespace Sarabunari.Attributor.Tests
                 new Object[] { other, plain, c.transform, box });
             Assert.AreEqual(2, added);
             CollectionAssert.AreEqual(new[] { existing, box, box }, c.droppedBoxes);
+        }
+
+        [Test]
+        public void DropZone_SpriteFile_DropsAsItsSprite()
+        {
+            // Dragging a sprite .png from the Project window drags its Texture2D; the Sprite is a sub-asset.
+            const string path = "Assets/AttributorDropTest.png";
+            var tex = new Texture2D(4, 4);
+            System.IO.File.WriteAllBytes(path, tex.EncodeToPNG());
+            Object.DestroyImmediate(tex);
+            try
+            {
+                AssetDatabase.ImportAsset(path);
+                var importer = (TextureImporter)AssetImporter.GetAtPath(path);
+                importer.textureType = TextureImporterType.Sprite;
+                importer.spriteImportMode = SpriteImportMode.Single;
+                importer.SaveAndReimport();
+
+                var c = Component<DrawerFixture>();
+                var so = new SerializedObject(c);
+                var added = MemberElements.AppendDropped(so.FindProperty("icons"), typeof(Sprite),
+                    new Object[] { AssetDatabase.LoadMainAssetAtPath(path) });
+                Assert.AreEqual(1, added);
+                Assert.AreEqual(AssetDatabase.LoadAssetAtPath<Sprite>(path), c.icons[0]);
+            }
+            finally { AssetDatabase.DeleteAsset(path); }
         }
     }
 }

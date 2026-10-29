@@ -27,6 +27,13 @@ namespace Sarabunari.Attributor.Tests
         [Button] void Needs(int x) { }
         [Button] void Boom() { counter = 9; throw new System.InvalidOperationException("boom"); }
         [Button("Play", EButtonEnableMode.Playmode)] void PlayOnly() { }
+        public float speed;
+        [Button("Add 1 Hour", 1), Button("Add 2 Hours", 2)] public void AddHours(int amount) => counter += amount;
+        [Button("Zero", 0)] void SetLast(int x) => last = x;
+        [Button("Pair", 0, 5)] void SetPair(int a, int b) => last = a * 100 + b;
+        [Button("Speed", 1)] void SetSpeed(float s) => speed = s;
+        [Button("Bad", "text")] void TakesInt(int x) { }
+        [Button("Too many", 1, 2)] void TakesOne(int x) { }
 
         [Group(3)] [Button] void A() { }
         [Group(3)] [Button] void B() { }

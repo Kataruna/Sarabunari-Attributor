@@ -11,7 +11,7 @@ using Object = UnityEngine.Object;
 
 namespace Sarabunari.Attributor.Editor
 {
-    [CustomPropertyDrawer(typeof(LineAttribute))]
+    [CustomPropertyDrawer(typeof(LineAttribute), true)]
     public class LineDrawer : DecoratorDrawer
     {
         public override VisualElement CreatePropertyGUI()
