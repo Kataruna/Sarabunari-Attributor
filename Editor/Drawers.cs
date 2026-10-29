@@ -238,4 +238,49 @@ namespace Sarabunari.Attributor.Editor
             return root;
         }
     }
+
+    [CustomPropertyDrawer(typeof(PreviewAttribute))]
+    public class PreviewDrawer : PropertyDrawer
+    {
+        /// <summary>Asset thumbnail, hidden while loading or when the object has none (e.g. scene objects).</summary>
+        public static Image Thumbnail(Object obj)
+        {
+            var image = new Image { scaleMode = ScaleMode.ScaleToFit, tooltip = obj != null ? obj.name : null };
+            image.AddToClassList("attributor-preview");
+            image.style.display = DisplayStyle.None;
+            if (obj == null) return image;
+
+            // AssetPreview renders asynchronously: poll until it lands or loading stops.
+            image.schedule.Execute(() => { }).Every(50).Until(() =>
+            {
+                image.image = AssetPreview.GetAssetPreview(obj);
+                image.style.display = image.image != null ? DisplayStyle.Flex : DisplayStyle.None;
+                return image.image != null || !AssetPreview.IsLoadingAssetPreviews();
+            });
+            return image;
+        }
+
+        public override VisualElement CreatePropertyGUI(SerializedProperty property)
+        {
+            if (property.propertyType != SerializedPropertyType.ObjectReference)
+                return new HelpBox("Preview works on object reference fields", HelpBoxMessageType.Warning);
+
+            var root = new VisualElement();
+            var field = new PropertyField(property);
+            root.Add(field);
+            var holder = new VisualElement();
+            root.Add(holder);
+
+            void Refresh(Object obj)
+            {
+                holder.Clear();
+                var image = Thumbnail(obj);
+                image.style.width = image.style.height = 64;
+                holder.Add(image);
+            }
+            Refresh(property.objectReferenceValue);
+            field.RegisterValueChangeCallback(e => Refresh(e.changedProperty.objectReferenceValue));
+            return root;
+        }
+    }
 }

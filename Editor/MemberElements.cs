@@ -286,6 +286,99 @@ namespace Sarabunari.Attributor.Editor
             return root;
         }
 
+        public static VisualElement CreateGallery(VisualElement field, SerializedProperty property, GalleryAttribute attr)
+        {
+            if (!property.isArray || property.arrayElementType == null || !property.arrayElementType.StartsWith("PPtr<"))
+                return new HelpBox("Gallery works on List or array of object reference fields", HelpBoxMessageType.Warning) { name = property.name };
+
+            var root = new VisualElement { name = property.name };
+            root.Add(field);
+            var grid = new VisualElement();
+            grid.AddToClassList("attributor-gallery");
+            grid.AddToClassList("attributor-columns");
+            root.Add(grid);
+
+            void Rebuild(SerializedProperty p)
+            {
+                grid.Clear();
+                for (var i = 0; i < p.arraySize; i++)
+                {
+                    var cell = new VisualElement { style = { width = Length.Percent(100f / attr.Columns) } };
+                    cell.AddToClassList("attributor-gallery-cell");
+                    // Square cells: height follows the column width.
+                    cell.RegisterCallback<GeometryChangedEvent>(e => cell.style.height = e.newRect.width);
+                    var image = PreviewDrawer.Thumbnail(p.GetArrayElementAtIndex(i).objectReferenceValue);
+                    image.style.flexGrow = 1;
+                    cell.Add(image);
+                    grid.Add(cell);
+                }
+            }
+            Rebuild(property);
+            root.TrackPropertyValue(property, Rebuild);
+            return root;
+        }
+
+        static Type ElementType(FieldInfo field)
+        {
+            var t = field.FieldType;
+            if (t.IsArray && t.GetArrayRank() == 1) return t.GetElementType();
+            return t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>) ? t.GetGenericArguments()[0] : null;
+        }
+
+        public static VisualElement CreateDropZone(VisualElement field, FieldInfo info, SerializedProperty property)
+        {
+            var type = ElementType(info);
+            if (type == null || !(typeof(Object).IsAssignableFrom(type) || type.IsInterface))
+                return new HelpBox("DropZone works on List or array of object reference fields", HelpBoxMessageType.Warning) { name = property.name };
+
+            var root = new VisualElement { name = property.name };
+            var zone = new Label("Drop " + type.Name + " here") { name = "drop-zone" };
+            zone.AddToClassList("attributor-drop-zone");
+            zone.RegisterCallback<DragUpdatedEvent>(_ =>
+            {
+                var ok = DragAndDrop.objectReferences.Any(o => Accept(o, type) != null);
+                DragAndDrop.visualMode = ok ? DragAndDropVisualMode.Copy : DragAndDropVisualMode.Rejected;
+                zone.EnableInClassList("attributor-drop-zone--hover", ok);
+            });
+            zone.RegisterCallback<DragLeaveEvent>(_ => zone.RemoveFromClassList("attributor-drop-zone--hover"));
+            zone.RegisterCallback<DragPerformEvent>(_ =>
+            {
+                DragAndDrop.AcceptDrag();
+                zone.RemoveFromClassList("attributor-drop-zone--hover");
+                AppendDropped(property, type, DragAndDrop.objectReferences);
+            });
+            root.Add(zone);
+            root.Add(field);
+            return root;
+        }
+
+        /// <summary>The object itself if it fits the element type, else a matching component on a dropped GameObject.</summary>
+        static Object Accept(Object o, Type type)
+        {
+            if (o == null) return null;
+            if (type.IsInstanceOfType(o)) return o;
+            if (o is GameObject go && (typeof(Component).IsAssignableFrom(type) || type.IsInterface)) return go.GetComponent(type);
+            return null;
+        }
+
+        /// <summary>Appends the dropped objects that fit to the end of the list; returns how many were added.</summary>
+        public static int AppendDropped(SerializedProperty property, Type type, Object[] dropped)
+        {
+            var so = property.serializedObject;
+            so.Update();
+            var added = 0;
+            foreach (var o in dropped)
+            {
+                var item = Accept(o, type);
+                if (item == null) continue;
+                property.arraySize++;
+                property.GetArrayElementAtIndex(property.arraySize - 1).objectReferenceValue = item;
+                added++;
+            }
+            so.ApplyModifiedProperties();
+            return added;
+        }
+
         static bool ValueEquals(object a, object b)
         {
             if (ReferenceEquals(a, b)) return true;

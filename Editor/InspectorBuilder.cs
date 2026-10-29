@@ -58,6 +58,9 @@ namespace Sarabunari.Attributor.Editor
             var field = getChild != null
                 ? MemberElements.CreateGetChild(so, info, property, getChild)
                 : new PropertyField(property) { name = m.Name };
+            var gallery = info.GetCustomAttribute<GalleryAttribute>();
+            if (gallery != null) field = MemberElements.CreateGallery(field, property, gallery);
+            if (info.IsDefined(typeof(DropZoneAttribute))) field = MemberElements.CreateDropZone(field, info, property);
             MemberElements.ApplyModifiers(field, so, info);
             return field;
         }

@@ -82,4 +82,19 @@ namespace Sarabunari.Attributor
             IncludeInactive = includeInactive;
         }
     }
+
+    /// <summary>Object reference shows a thumbnail of its texture, sprite, prefab or other asset under the field.</summary>
+    public class PreviewAttribute : PropertyAttribute { }
+
+    /// <summary>List or array of object references shows a thumbnail grid under the field.</summary>
+    [AttributeUsage(AttributeTargets.Field)]
+    public class GalleryAttribute : Attribute
+    {
+        public int Columns { get; }
+        public GalleryAttribute(int columns = 4) => Columns = Math.Max(1, columns);
+    }
+
+    /// <summary>List or array of object references shows a drop area above it; dropped objects are appended.</summary>
+    [AttributeUsage(AttributeTargets.Field)]
+    public class DropZoneAttribute : Attribute { }
 }

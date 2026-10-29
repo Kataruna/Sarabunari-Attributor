@@ -309,5 +309,67 @@ namespace Sarabunari.Attributor.Tests
             CollectionAssert.AreEqual(new[] { s1, s2 }, c.childSpheres);
             Assert.AreEqual(DisplayStyle.None, error.resolvedStyle.display);
         }
+    
+        [UnityTest]
+        public IEnumerator Preview_ShowsSpriteThumbnail_OnlyWhileAssigned()
+        {
+            var c = Component<DrawerFixture>();
+            yield return Show(c);
+            var image = window.rootVisualElement.Q<Image>(className: "attributor-preview");
+            Assert.AreEqual(DisplayStyle.None, image.resolvedStyle.display);
+
+            editor.serializedObject.FindProperty("icon").objectReferenceValue = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+            editor.serializedObject.ApplyModifiedProperties();
+            var until = EditorApplication.timeSinceStartup + 3;
+            while (EditorApplication.timeSinceStartup < until &&
+                   window.rootVisualElement.Q<Image>(className: "attributor-preview").image == null) yield return null;
+            image = window.rootVisualElement.Q<Image>(className: "attributor-preview");
+            Assert.IsNotNull(image.image);
+            Assert.AreEqual(DisplayStyle.Flex, image.resolvedStyle.display);
+        }
+
+        [UnityTest]
+        public IEnumerator Gallery_OneCellPerElement_InColumns_AndFollowsListChanges()
+        {
+            var c = Component<DrawerFixture>();
+            var sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+            c.icons.AddRange(new[] { sprite, sprite });
+            yield return Show(c);
+
+            var grid = window.rootVisualElement.Q(className: "attributor-gallery");
+            Assert.AreEqual(2, grid.childCount);
+            Assert.AreEqual(Length.Percent(100f / 3), grid[0].style.width.value);
+
+            var list = editor.serializedObject.FindProperty("icons");
+            list.arraySize = 4;
+            editor.serializedObject.ApplyModifiedProperties();
+            var until = EditorApplication.timeSinceStartup + 0.5;
+            while (EditorApplication.timeSinceStartup < until) yield return null;
+            Assert.AreEqual(4, grid.childCount);
+        }
+    
+        [UnityTest]
+        public IEnumerator DropZone_ShownAboveList_AppendsOnlyMatchingDrops()
+        {
+            var c = Component<DrawerFixture>();
+            var existing = c.gameObject.AddComponent<BoxCollider>();
+            c.droppedBoxes = new[] { existing };
+            yield return Show(c);
+
+            var root = window.rootVisualElement.Q("droppedBoxes");
+            Assert.AreEqual("drop-zone", root[0].name);
+
+            var other = new GameObject("other");
+            created.Add(other);
+            var box = other.AddComponent<BoxCollider>();
+            var plain = new GameObject("plain");
+            created.Add(plain);
+
+            // GameObjects resolve to their component; ones without it, and wrong types, are skipped.
+            var added = MemberElements.AppendDropped(editor.serializedObject.FindProperty("droppedBoxes"), typeof(BoxCollider),
+                new Object[] { other, plain, c.transform, box });
+            Assert.AreEqual(2, added);
+            CollectionAssert.AreEqual(new[] { existing, box, box }, c.droppedBoxes);
+        }
     }
 }

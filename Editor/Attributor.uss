@@ -36,3 +36,30 @@
     margin-left: 0;
     margin-right: 0;
 }
+
+.attributor-gallery {
+    margin: 2px 0 4px 0;
+}
+
+.attributor-gallery-cell {
+    padding: 2px;
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0.35);
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.attributor-drop-zone {
+    height: 36px;
+    margin: 2px 0;
+    border-width: 1px;
+    border-radius: 3px;
+    border-color: rgba(128, 128, 128, 0.6);
+    background-color: rgba(255, 255, 255, 0.03);
+    -unity-text-align: middle-center;
+    color: rgba(180, 180, 180, 1);
+}
+
+.attributor-drop-zone--hover {
+    border-color: rgb(58, 121, 187);
+    background-color: rgba(58, 121, 187, 0.2);
+}

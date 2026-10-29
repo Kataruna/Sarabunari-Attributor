@@ -11,5 +11,8 @@ namespace Sarabunari.Attributor.Tests
         [SelfAssign] public BoxCollider box;
         [Expandable] public SelfRefAsset config;
         [GetChild] public List<SphereCollider> childSpheres = new List<SphereCollider>();
+        [Preview] public Sprite icon;
+        [Gallery(3)] public List<Sprite> icons = new List<Sprite>();
+        [DropZone] public BoxCollider[] droppedBoxes = new BoxCollider[0];
     }
 }
