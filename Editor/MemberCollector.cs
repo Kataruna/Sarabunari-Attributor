@@ -34,7 +34,7 @@ namespace Sarabunari.Attributor.Editor
 
         static bool IsOurs(object a) =>
             a is LevelAttribute || a is ButtonAttribute || a is ShowAttribute || a is ReadOnlyAttribute ||
-            a is EnableIfAttribute || a is DisableIfAttribute || a is OnChangeAttribute || a is GetChildAttribute || a is GalleryAttribute || a is DropZoneAttribute;
+            a is EnableIfAttribute || a is DisableIfAttribute || a is OnChangeAttribute || a is GetChildAttribute || a is GalleryAttribute || a is DropZoneAttribute || a is PathPreviewAttribute || a is PathPreviewOnSceneAttribute;
 
         static IEnumerable<Type> Hierarchy(Type type)
         {

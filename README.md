@@ -40,6 +40,8 @@ using Sarabunari.Attributor;
 | `Preview` | `[Preview] public Sprite icon;` | Thumbnail of the assigned texture, sprite, prefab or other asset under the field. |
 | `Gallery` | `[Gallery(3)] public List<Sprite> icons;` | Thumbnail grid of a list/array of assets under the field. The number sets columns (default 4). |
 | `DropZone` | `[DropZone] public List<Sprite> icons;` | Drop area under a list/array's name, above its elements; dropped objects are added to the end. A dropped `GameObject` adds its matching component. |
+| `PathPreview` | `[PathPreview(Plane = PathPlane.XZ)] public List<Vector3> path;` | Flat plot of a `Vector3` list/array's path under the field, projected onto XZ (default), XY or YZ. The first point is green. |
+| `PathPreviewOnScene` | `[PathPreviewOnScene(Local = true)] public List<Vector3> path;` | Draws the same path as a numbered line in the Scene view while the object is selected. `Local` treats points as relative to the transform. Combine with `PathPreview` for both. |
 
 Stack levels to mix collapsible and open boxes — attributes nest left to right:
 
@@ -56,6 +58,10 @@ Gives a collapsible **Border** with two 2×2 boxes, then `[Spawn] [Reset] [Clear
 
 ## Notes
 
-- `ReadOnly`, `EnableIf`, `DisableIf`, `OnChange`, `GetChild`, `Gallery`, `DropZone`, `Group`, `Fold` and `Button` work on members of a `MonoBehaviour` or `ScriptableObject`, not inside nested `[Serializable]` classes. `Line`, `SceneName`, `Expandable`, `MinMaxSlider`, `Required`, `SelfAssign` and `Preview` work anywhere.
+- `ReadOnly`, `EnableIf`, `DisableIf`, `OnChange`, `GetChild`, `Gallery`, `DropZone`, `PathPreview`, `PathPreviewOnScene`, `Group`, `Fold` and `Button` work on members of a `MonoBehaviour` or `ScriptableObject`, not inside nested `[Serializable]` classes. `Line`, `SceneName`, `Expandable`, `MinMaxSlider`, `Required`, `SelfAssign` and `Preview` work anywhere.
 - Scripts that use none of these attributes get Unity's normal inspector.
 - Not compatible with NaughtyAttributes installed in the same project (both replace the inspector) — see [MIGRATION.md](MIGRATION.md) to switch.
+
+## AI disclosure
+
+Attributor is developed with an AI coding agent ([Claude Code](https://claude.com/claude-code) by Anthropic). The maintainer decides what gets built and directs the agent, which writes most of the code, tests and docs. Changes are checked with the package's EditMode test suite in Unity before each release. Commits the agent worked on carry a `Co-Authored-By: Claude` trailer in the git history.

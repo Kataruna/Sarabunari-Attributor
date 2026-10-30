@@ -14,6 +14,7 @@ namespace Sarabunari.Attributor.Tests
         [GetChild] public List<SphereCollider> childSpheres = new List<SphereCollider>();
         [Preview] public Sprite icon;
         [Gallery(3)] public List<Sprite> icons = new List<Sprite>();
+        [PathPreview] [PathPreviewOnScene] public List<Vector3> path = new List<Vector3> { Vector3.zero, new Vector3(1, 0, 2) };
         [DropZone] public BoxCollider[] droppedBoxes = new BoxCollider[0];
     }
 }

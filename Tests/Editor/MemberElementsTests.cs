@@ -219,5 +219,16 @@ namespace Sarabunari.Attributor.Tests
             }
             finally { Object.DestroyImmediate(editor); }
         }
+
+        [Test]
+        public void FitPath_StaysInsideRect_KeepsOrder_AndHandlesSinglePoint()
+        {
+            var rect = new Rect(0, 0, 200, 100);
+            var fit = MemberElements.FitPath(new[] { Vector3.zero, new Vector3(10, 0, 0), new Vector3(10, 0, 5) }, PathPlane.XZ, rect);
+            foreach (var p in fit) Assert.IsTrue(rect.Contains(p));
+            Assert.Less(fit[0].x, fit[1].x);
+            Assert.Less(fit[2].y, fit[1].y); // +z is up on screen
+            Assert.AreEqual(rect.center, MemberElements.FitPath(new[] { new Vector3(3, 4, 5) }, PathPlane.XY, rect)[0]);
+        }
     }
 }

@@ -100,4 +100,22 @@ namespace Sarabunari.Attributor
     /// <summary>List or array of object references shows a drop area under its name; dropped objects are appended.</summary>
     [AttributeUsage(AttributeTargets.Field)]
     public class DropZoneAttribute : Attribute { }
+
+    public enum PathPlane { XZ, XY, YZ }
+
+    /// <summary>List or array of Vector3 shows a flat plot of its path under the field.</summary>
+    [AttributeUsage(AttributeTargets.Field)]
+    public class PathPreviewAttribute : Attribute
+    {
+        /// <summary>Axes the plot is projected onto.</summary>
+        public PathPlane Plane { get; set; } = PathPlane.XZ;
+    }
+
+    /// <summary>List or array of Vector3 draws its path in the Scene view while the object is selected.</summary>
+    [AttributeUsage(AttributeTargets.Field)]
+    public class PathPreviewOnSceneAttribute : Attribute
+    {
+        /// <summary>Points are relative to the object's transform instead of world space.</summary>
+        public bool Local { get; set; }
+    }
 }

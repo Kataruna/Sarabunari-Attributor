@@ -61,6 +61,10 @@ namespace Sarabunari.Attributor.Editor
             var gallery = info.GetCustomAttribute<GalleryAttribute>();
             if (gallery != null) field = MemberElements.CreateGallery(field, property, gallery);
             if (info.IsDefined(typeof(DropZoneAttribute))) field = MemberElements.CreateDropZone(field, info, property);
+            var path = info.GetCustomAttribute<PathPreviewAttribute>();
+            if (path != null) field = MemberElements.CreatePathPreview(field, property, path);
+            var onScene = info.GetCustomAttribute<PathPreviewOnSceneAttribute>();
+            if (onScene != null) field = MemberElements.CreatePathPreviewOnScene(field, property, onScene);
             MemberElements.ApplyModifiers(field, so, info);
             return field;
         }

@@ -363,6 +363,97 @@ namespace Sarabunari.Attributor.Editor
             return root;
         }
 
+        static bool IsVector3List(SerializedProperty property) => property.isArray && property.arrayElementType == "Vector3";
+
+        static Vector3[] PathPoints(SerializedProperty property)
+        {
+            property.serializedObject.UpdateIfRequiredOrScript();
+            var points = new Vector3[property.arraySize];
+            for (var i = 0; i < points.Length; i++) points[i] = property.GetArrayElementAtIndex(i).vector3Value;
+            return points;
+        }
+
+        public static VisualElement CreatePathPreview(VisualElement field, SerializedProperty property, PathPreviewAttribute attr)
+        {
+            if (!IsVector3List(property))
+                return new HelpBox("PathPreview works on List or array of Vector3 fields", HelpBoxMessageType.Warning) { name = property.name };
+
+            var root = new VisualElement { name = property.name };
+            root.Add(field);
+            var box = new VisualElement();
+            box.AddToClassList("attributor-path");
+            box.style.height = 120;
+            box.generateVisualContent += ctx =>
+            {
+                var points = FitPath(PathPoints(property), attr.Plane, box.contentRect);
+                var painter = ctx.painter2D;
+                painter.lineWidth = 2;
+                painter.strokeColor = new Color(0.3f, 0.8f, 1f);
+                painter.BeginPath();
+                for (var i = 0; i < points.Length; i++)
+                    if (i == 0) painter.MoveTo(points[i]); else painter.LineTo(points[i]);
+                painter.Stroke();
+                for (var i = 0; i < points.Length; i++)
+                {
+                    painter.fillColor = i == 0 ? Color.green : Color.white;
+                    painter.BeginPath();
+                    painter.Arc(points[i], 3, 0, 360);
+                    painter.Fill();
+                }
+            };
+            root.Add(box);
+            root.TrackPropertyValue(property, _ => box.MarkDirtyRepaint());
+            return root;
+        }
+
+        public static VisualElement CreatePathPreviewOnScene(VisualElement field, SerializedProperty property, PathPreviewOnSceneAttribute attr)
+        {
+            if (!IsVector3List(property))
+                return new HelpBox("PathPreviewOnScene works on List or array of Vector3 fields", HelpBoxMessageType.Warning) { name = property.name };
+
+            var so = property.serializedObject;
+            void OnScene(SceneView _)
+            {
+                if (so.targetObject == null) return;
+                var matrix = attr.Local && so.targetObject is Component c ? c.transform.localToWorldMatrix : Matrix4x4.identity;
+                var points = PathPoints(property);
+                using (new Handles.DrawingScope(new Color(0.3f, 0.8f, 1f), matrix))
+                {
+                    Handles.DrawAAPolyLine(3f, points);
+                    for (var i = 0; i < points.Length; i++)
+                    {
+                        Handles.SphereHandleCap(0, points[i], Quaternion.identity, HandleUtility.GetHandleSize(points[i]) * 0.08f, EventType.Repaint);
+                        Handles.Label(points[i], i.ToString());
+                    }
+                }
+            }
+
+            var root = new VisualElement { name = property.name };
+            root.Add(field);
+            // Drawn while the inspector is showing, i.e. while the object is selected.
+            root.RegisterCallback<AttachToPanelEvent>(_ => { SceneView.duringSceneGui += OnScene; SceneView.RepaintAll(); });
+            root.RegisterCallback<DetachFromPanelEvent>(_ => { SceneView.duringSceneGui -= OnScene; SceneView.RepaintAll(); });
+            root.TrackPropertyValue(property, _ => SceneView.RepaintAll());
+            return root;
+        }
+
+        /// <summary>Projects the points onto the plane and scales them uniformly to fill the rect (y flipped to screen space).</summary>
+        public static Vector2[] FitPath(Vector3[] points, PathPlane plane, Rect rect)
+        {
+            const float Pad = 8;
+            var flat = points.Select(p => plane == PathPlane.XZ ? new Vector2(p.x, -p.z) : plane == PathPlane.XY ? new Vector2(p.x, -p.y) : new Vector2(p.z, -p.y)).ToArray();
+            if (flat.Length == 0) return flat;
+            var min = flat[0];
+            var max = flat[0];
+            foreach (var p in flat) { min = Vector2.Min(min, p); max = Vector2.Max(max, p); }
+            var size = max - min;
+            var avail = new Vector2(Mathf.Max(1, rect.width - 2 * Pad), Mathf.Max(1, rect.height - 2 * Pad));
+            var scale = Mathf.Min(size.x > 0 ? avail.x / size.x : float.MaxValue, size.y > 0 ? avail.y / size.y : float.MaxValue);
+            if (scale == float.MaxValue) scale = 1;
+            var offset = rect.center - (min + size / 2) * scale;
+            return flat.Select(p => p * scale + offset).ToArray();
+        }
+
         static Type ElementType(FieldInfo field)
         {
             var t = field.FieldType;
